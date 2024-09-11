@@ -4,13 +4,13 @@
     "description": "nav-manage-api.",
     "main": "server.js",
     "scripts": {
-      "start": "node server.js"
+        "start": "node server.js",
+        "postinstall": "npm install --omit=dev"
     },
     "dependencies": {
-      "axios": "^0.27.2",
-      "cors": "^2.8.5",
-      "express": "^4.18.2",
-      "js-yaml": "^4.1.0"
+        "axios": "^0.27.2",
+        "cors": "^2.8.5",
+        "express": "^4.18.2",
+        "js-yaml": "^4.1.0"
     }
-  }
-  
+}
