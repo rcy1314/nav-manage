@@ -56,8 +56,9 @@ const uploadFileToGitHub = async (filename, content) => {
 
 
 app.get('/data', async (req, res) => {
+    const folderPath = DATA_DIR; // 使用环境变量指定的文件夹路径
     try {
-        const response = await axios.get(`https://api.github.com/repos/${GITHUB_REPO}/contents/`, {
+        const response = await axios.get(`https://api.github.com/repos/${GITHUB_REPO}/contents/${folderPath}`, {
             headers: {
                 Authorization: `token ${GITHUB_TOKEN}`,
                 Accept: 'application/vnd.github.v3+json'
@@ -68,9 +69,9 @@ app.get('/data', async (req, res) => {
             .map(file => file.name);
         res.json(yamlFiles);
     } catch (err) {
-        console.error('读取文件夹时出错:', err);
+        console.error('读取文件夹时出错:', err.response ? err.response.data : err);
         return res.status(500).send('读取文件夹失败');
-    }
+    }    
 });
 
 app.get('/data/:filename', async (req, res) => {
