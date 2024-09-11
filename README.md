@@ -22,14 +22,6 @@
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/deploy)
 
-## 安装依赖
-
-
-
-```
-npm install express js-yaml cors
-```
-
 
 
 ### 环境变量说明
