@@ -20,7 +20,7 @@
 
 点击下面的按钮，快速将应用部署到 Zeabur：
 
-[<img src="https://zeabur.com/favicon.svg" alt="Deploy to Zeabur" style="zoom: 25%;" />](https://zeabur.com/deploy)
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/deploy)
 
 ### 环境变量说明
 
