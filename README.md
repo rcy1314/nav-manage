@@ -1,4 +1,6 @@
-## Nav-Manage为静态导航带来强大的管理扩展!
+## Nav-Manage
+
+## 为静态导航带来强大的管理扩展!
 
 ![](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726070023506.png)
 
@@ -20,7 +22,7 @@
 
 点击下面的按钮，快速将应用部署到 Zeabur：
 
-[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/import/project?template=https://github.com/rcy1314/nav-manage)
+[![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/MFNZYE)
 
 
 
