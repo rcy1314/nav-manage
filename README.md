@@ -16,7 +16,11 @@
 
 点击下面的按钮，快速将应用部署到 Railway：
 
-[![Deploy to Railway](https://railway.app/button.svg)](https://railway.app/new/template)
+[![Deploy to Railway](https://railway.app/button.svg)](https://railway.app/new)
+
+设置好环境变量后点击部署，部署成功后要在项目设置中开启网络选项
+
+<img src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726090548735.png" style="zoom:50%;" />
 
 ## 使用 Zeabur 部署
 
@@ -24,14 +28,16 @@
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/MFNZYE)
 
+点击模版后输入环境变量点击部署
 
+<img src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726090729510.png" alt="1726090729510" style="zoom:50%;" />
 
 ### 环境变量说明
 
 在 Railway 或 Zeabur 上，你需要设置以下环境变量：
 
 - `PORT`: 服务器监听的端口（可选，默认是 8980）。
-- `DATA_DIR`: 存储 数据 文件的目录（可选，但不再直接使用）。
+- `DATA_DIR`: 存储 数据 文件的目录（你需要选择你的数据文件存放目录）。
 - `GITHUB_TOKEN`: GitHub 访问令牌，用于认证 API 请求。
 - `GITHUB_REPO`: GitHub 仓库（格式：`username/repo`）。
 - `GITHUB_BRANCH`: 默认分支（可选，默认是 `main`）。
