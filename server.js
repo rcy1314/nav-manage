@@ -9,7 +9,7 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 8980;
 
-const DATA_DIR = process.env.DATA_DIR || '/www/wwwroot/www.noisedh.cn/data/';
+const DATA_DIR = process.env.DATA_DIR || '/data/';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
 const GITHUB_REPO = process.env.GITHUB_REPO; 
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main'; 
