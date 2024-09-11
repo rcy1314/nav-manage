@@ -22,17 +22,45 @@
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/deploy)
 
+## 安装依赖
+
+
+
+```
+npm install express js-yaml cors
+```
+
+
+
 ### 环境变量说明
 
 在 Railway 或 Zeabur 上，你需要设置以下环境变量：
 
 - `PORT`: 服务器监听的端口（可选，默认是 8980）。
-- `DATA_DIR`: 存储 YAML 文件的目录（可选，默认是 `/data`）。
-- `GITHUB_TOKEN`: 用于访问 GitHub API 的访问令牌。
-- `REPO`: GitHub 仓库的名称，格式为 `username/repo`。
-- `FILE_PATH`: 需要读写的 YAML 文件的路径。
+- `DATA_DIR`: 存储 数据 文件的目录（可选，但不再直接使用）。
+- `GITHUB_TOKEN`: GitHub 访问令牌，用于认证 API 请求。
+- `GITHUB_REPO`: GitHub 仓库（格式：`username/repo`）。
+- `GITHUB_BRANCH`: 默认分支（可选，默认是 `main`）。
+
+### 功能说明
+
+1. **获取文件列表**：`GET /data` - 返回 `/data` 文件夹中的数据 文件列表。
+2. **获取特定文件内容**：`GET /data/:filename` - 返回指定数据文件的内容。
+3. **添加数据到 文件**：`POST /api/yaml` - 向指定的 数据 文件添加新数据条目。
+4. **搜索条目**：`GET /api/search` - 在指定数据 文件中搜索条目。
+5. **删除条目**：`DELETE /api/delete` - 从指定的数据文件中删除条目。
+6. **更新条目**：`PUT /api/update` - 更新指定数据文件中的条目。
 
 ### 注意事项
 
-1. 确保在 GitHub 上创建一个访问令牌，并为其分配必要的权限（如 repo 权限）。
-2. 在处理 YAML 文件时，你需要获取文件的 SHA 值，以便在更新时使用。可以在读取文件时获取该值。
+确保在 GitHub 上创建一个访问令牌，并为其分配必要的权限（如 repo 权限）。
+
+在处理 数据文件时，你需要获取文件的 SHA 值，以便在更新时使用。可以在读取文件时获取该值。
+
+### 安装所有依赖的命令
+
+在项目根目录下，运行以下命令以安装所有依赖：
+
+```bash
+npm install
+```
