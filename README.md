@@ -16,7 +16,7 @@
 
 点击下面的按钮，快速将应用部署到 Railway：
 
-[![Deploy to Railway](https://railway.app/button.svg)](https://vercel.com/import/project?template=https://github.com/rcy1314/nav-manage)
+[![Deploy to Railway](https://railway.app/button.svg)](https://railway.app/new/template)
 
 ## 使用 Zeabur 部署
 
