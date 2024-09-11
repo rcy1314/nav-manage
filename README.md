@@ -38,7 +38,7 @@
 
 - `PORT`: 服务器监听的端口（可选，默认是 8980）。
 - `DATA_DIR`: 存储 数据 文件的目录（如果没有设置 `DATA_DIR`，则默认使用 `/data/` 作为文件路径）
-- `GITHUB_TOKEN`: GitHub 访问令牌，用于认证 API 请求。（**GitHub API 限制**：如果你在短时间内发送了太多请求，GitHub API 可能会限制你的请求。确保在调用 API 时遵循 GitHub 的速率限制。）
+- `GITHUB_TOKEN`: [GitHub 访问令牌](https://github.com/settings/apps)，用于认证 API 请求。（**GitHub API 限制**：如果你在短时间内发送了太多请求，GitHub API 可能会限制你的请求。确保在调用 API 时遵循 GitHub 的速率限制。）
 - `GITHUB_REPO`: GitHub 仓库（格式：`username/repo`）。
 - `GITHUB_BRANCH`: 默认分支（可选，默认是 `main`）。
 

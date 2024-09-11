@@ -3,16 +3,15 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const cors = require('cors');
-const { exec } = require('child_process');
 const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 8980;
 
 const DATA_DIR = process.env.DATA_DIR || '/data/';
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
-const GITHUB_REPO = process.env.GITHUB_REPO; 
-const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main'; 
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_REPO = process.env.GITHUB_REPO;
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
 if (!GITHUB_TOKEN || !GITHUB_REPO) {
     console.error('请设置 GITHUB_TOKEN 和 GITHUB_REPO 环境变量。');
@@ -33,27 +32,32 @@ const getGitHubFileUrl = (filename) => {
 
 const uploadFileToGitHub = async (filename, content) => {
     const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${filename}`;
-    const response = await axios.get(url, {
-        headers: {
-            Authorization: `token ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github.v3+json'
-        }
-    });
+    
+    try {
+        const response = await axios.get(url, {
+            headers: {
+                Authorization: `token ${GITHUB_TOKEN}`,
+                Accept: 'application/vnd.github.v3+json'
+            }
+        });
 
-    const sha = response.data.sha;
+        const sha = response.data.sha;
 
-    await axios.put(url, {
-        message: `Update ${filename}`,
-        content: Buffer.from(content).toString('base64'),
-        sha: sha
-    }, {
-        headers: {
-            Authorization: `token ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github.v3+json'
-        }
-    });
+        await axios.put(url, {
+            message: `Update ${filename}`,
+            content: Buffer.from(content).toString('base64'),
+            sha: sha
+        }, {
+            headers: {
+                Authorization: `token ${GITHUB_TOKEN}`,
+                Accept: 'application/vnd.github.v3+json'
+            }
+        });
+    } catch (err) {
+        console.error('上传文件到 GitHub 时出错:', err);
+        throw new Error('上传文件失败');
+    }
 };
-
 
 app.get('/data', async (req, res) => {
     const folderPath = DATA_DIR; // 使用环境变量指定的文件夹路径
@@ -71,7 +75,7 @@ app.get('/data', async (req, res) => {
     } catch (err) {
         console.error('读取文件夹时出错:', err.response ? err.response.data : err);
         return res.status(500).send('读取文件夹失败');
-    }    
+    }
 });
 
 app.get('/data/:filename', async (req, res) => {
@@ -145,6 +149,7 @@ app.post('/api/yaml', async (req, res) => {
         }
 
         const yamlString = '---\n' + yaml.dump(yamlData, { noRefs: true, lineWidth: -1 });
+
         await uploadFileToGitHub(filename, yamlString);
         res.send('数据添加成功！');
     } catch (err) {
