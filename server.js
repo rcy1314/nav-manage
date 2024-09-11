@@ -28,7 +28,7 @@ app.use(cors({
 app.use(express.json());
 
 const getGitHubFileUrl = (filename) => {
-    return `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/${filename}`;
+    return `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/${DATA_DIR}${filename}`;
 };
 
 const uploadFileToGitHub = async (filename, content) => {
@@ -82,10 +82,10 @@ app.get('/data/:filename', async (req, res) => {
         const response = await axios.get(fileUrl);
         res.send(response.data);
     } catch (err) {
+        console.error('读取文件时出错:', err.response ? err.response.data : err);
         if (err.response && err.response.status === 404) {
             return res.status(404).send('文件未找到');
         }
-        console.error('读取文件时出错:', err);
         return res.status(500).send('读取文件失败');
     }
 });
