@@ -58,3 +58,7 @@
 ```bash
 npm install
 ```
+
+
+
+> 如果你觉得本项目对你有所帮助，请[赞赏支持](https://www.noisework.cn/zhichi)它！
