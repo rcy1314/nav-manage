@@ -16,9 +16,9 @@
 
 点击下面的按钮，快速将应用部署到 Railway：
 
-[![Deploy to Railway](https://railway.app/button.svg)](https://railway.app/new)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/DUKGIQ?referralCode=aPt4gm)
 
-设置好环境变量后点击部署，部署成功后要在项目设置中开启网络选项
+部署成功后确保项目设置中开启网络选项，默认开启http，该链接为服务端地址
 
 <img src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726090548735.png" style="zoom:50%;" />
 
@@ -28,7 +28,7 @@
 
 [![Deploy on Zeabur](https://zeabur.com/button.svg)](https://zeabur.com/templates/MFNZYE)
 
-点击模版后输入环境变量点击部署
+点击模版后输入环境变量点击部署，确保项目设置中开启网络选项，该链接为服务端地址
 
 <img src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726090729510.png" alt="1726090729510" style="zoom:50%;" />
 
