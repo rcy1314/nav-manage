@@ -6,9 +6,33 @@
 
 ## 说明
 
+Nav-Manage由后端API+前端扩展组成
+
+服务基础为[WebStack 网址导航 Hugo 主题](https://github.com/shenweiyan/WebStack-Hugo)
+
+这是为静态导航而开发的功能增强为主的扩展，本仓库为后端，前端请安装扩展使用！
+
+演示导航站：[NOISE导航](https://www.noisedh.link)
+
+
+
+
+
 待添加…
 
+待添加…
 
+待添加…
+
+待添加…
+
+待添加…
+
+## 视频介绍
+
+视频已压缩过了，预览高清视频请前往公众号查看
+
+<video width="100%" height="100%" src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4" controls loop></video>
 
 # 一键部署
 
@@ -64,6 +88,30 @@
 ```bash
 npm install
 ```
+
+## 本地运行使用
+
+注意！本地的代码完全不同，需要自定义你的文件路径然后启动服务！
+
+待添加…
+
+待添加…
+
+待添加…
+
+## 云服务器部署使用
+
+注意！本地的代码完全不同，需要自定义你的文件路径然后启动服务！
+
+待添加…
+
+待添加…
+
+待添加…
+
+## 补充
+
+要使用自动化检测并删除失效链接请前往详细文档查看
 
 
 
