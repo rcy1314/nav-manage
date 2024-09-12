@@ -14,10 +14,6 @@ Nav-Manage由后端API+前端扩展组成
 
 演示导航站：[NOISE导航](https://www.noisedh.link)
 
-
-
-
-
 待添加…
 
 待添加…
@@ -27,6 +23,12 @@ Nav-Manage由后端API+前端扩展组成
 待添加…
 
 待添加…
+
+## 安装扩展
+
+Gooogle chrome：已提交，待审核通过
+
+Microsoft Edge：已提交，待审核通过
 
 ## 视频介绍
 
