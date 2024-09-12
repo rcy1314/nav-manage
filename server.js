@@ -54,8 +54,21 @@ const uploadFileToGitHub = async (filename, content) => {
             }
         });
     } catch (err) {
-        console.error('上传文件到 GitHub 时出错:', err);
-        throw new Error('上传文件失败');
+        if (err.response && err.response.status === 404) {
+            // 如果文件不存在，则创建新文件
+            await axios.put(url, {
+                message: `Create ${filename}`,
+                content: Buffer.from(content).toString('base64')
+            }, {
+                headers: {
+                    Authorization: `token ${GITHUB_TOKEN}`,
+                    Accept: 'application/vnd.github.v3+json'
+                }
+            });
+        } else {
+            console.error('上传文件到 GitHub 时出错:', err.response ? err.response.data : err);
+            throw new Error('上传文件失败');
+        }
     }
 };
 
