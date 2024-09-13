@@ -113,10 +113,12 @@ npm install
 
 待添加…
 
-
+## 一键部署导航站
 
 <details>
-<summary>✅ 一键部署导航站【点击展开】</summary>
+<summary>✅ 【点击展开】</summary>
+
+
 
 说明：这是导航站的部署模版，非本项目的一键部署
 
