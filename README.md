@@ -60,47 +60,6 @@ Microsoft Edge：已提交，待审核通过
 
 <img src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726090729510.png" alt="1726090729510" style="zoom:50%;" />
 
-
-
-<details>
-<summary>✅ 一键部署导航站【点击展开】</summary>
-
-
-
-说明：这是导航站的部署模版，非本项目的一键部署
-
-项目来源：https://github.com/shenweiyan/WebStack-Hugo
-
-### Webify
-
-[![Deploy with Webify](https://cloudbase.net/deploy.svg)](https://webify.dev/deploy?template=https://github.com/rcy1314/webstack-hugo-templates)
-
-### Netlify
-
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/rcy1314/webstack-hugo-templates)
-
-### Cloudflare Pages
-
-[![Deploy to Cloudflare Pages](https://www.cloudflare.com/favicon.ico)](https://pages.cloudflare.com/starter?utm_medium=deploy-button&utm_source=github&utm_campaign=default&repo=https://github.com/rcy1314/webstack-hugo-templates)
-
-### Vercel
-
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/rcy1314/webstack-hugo-templates)
-
-### GitHub Pages
-
-[点击使用 GitHub Pages 部署](https://github.com/features/actions/starter-workflows/deploy-to-github-pages)
-
-## GitHub action 工作流运行
-
-构建页面工作流将在您点击 “Start Workflow” 按钮后立即运行，并且在每次 `main` 分支有变动时也会自动运行
-
-自动检测失效链接工作流将在您点击 “Start Workflow” 按钮后立即运行，需要定时运行时取消cron前的#符号即可
-
-
-
-</details>
-
 ### 环境变量说明
 
 在 Railway 或 Zeabur 上，你需要设置以下环境变量：
@@ -155,6 +114,43 @@ npm install
 待添加…
 
 
+
+<details>
+<summary>✅ 一键部署导航站【点击展开】</summary>
+
+说明：这是导航站的部署模版，非本项目的一键部署
+
+项目来源：https://github.com/shenweiyan/WebStack-Hugo
+
+### Webify
+
+[![Deploy with Webify](https://cloudbase.net/deploy.svg)](https://webify.dev/deploy?template=https://github.com/rcy1314/webstack-hugo-templates)
+
+### Netlify
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/rcy1314/webstack-hugo-templates)
+
+### Cloudflare Pages
+
+[![Deploy to Cloudflare Pages](https://www.cloudflare.com/favicon.ico)](https://pages.cloudflare.com/starter?utm_medium=deploy-button&utm_source=github&utm_campaign=default&repo=https://github.com/rcy1314/webstack-hugo-templates)
+
+### Vercel
+
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/rcy1314/webstack-hugo-templates)
+
+### GitHub Pages
+
+[点击使用 GitHub Pages 部署](https://github.com/features/actions/starter-workflows/deploy-to-github-pages)
+
+## GitHub action 工作流运行
+
+构建页面工作流将在您点击 “Start Workflow” 按钮后立即运行，并且在每次 `main` 分支有变动时也会自动运行
+
+自动检测失效链接工作流将在您点击 “Start Workflow” 按钮后立即运行，需要定时运行时取消cron前的#符号即可
+
+
+
+</details>
 
 ## 致谢
 
