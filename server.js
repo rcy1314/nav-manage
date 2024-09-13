@@ -78,10 +78,12 @@ const uploadFileToGitHub = async (filename, content) => {
 
 const sendTelegramNotification = async (message) => {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const title = "导航站收录更新通知！"; // 添加标题
+
     try {
         await axios.post(url, {
             chat_id: TELEGRAM_CHAT_ID,
-            text: message,
+            text: `<b>${title}</b>\n${message}`, // 将标题和内容结合
             parse_mode: 'HTML'
         });
     } catch (err) {
