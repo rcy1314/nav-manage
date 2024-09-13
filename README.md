@@ -34,6 +34,8 @@ Microsoft Edge：已提交，待审核通过
 
 视频已压缩过了，预览高清视频请前往公众号查看
 
+
+
 <video width="100%" height="100%" src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4" controls loop></video>
 
 # 一键部署
@@ -58,16 +60,16 @@ Microsoft Edge：已提交，待审核通过
 
 <img src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726090729510.png" alt="1726090729510" style="zoom:50%;" />
 
-## 一键部署导航站
+
 
 <details>
-<summary>✅ 一键部署【点击展开】</summary>
-
-## 部署 
-
-您可以一键将这个项目部署到不同的平台。 
+<summary>✅ 一键部署导航站【点击展开】</summary>
 
 
+
+说明：这是导航站的部署模版，非本项目的一键部署
+
+项目来源：https://github.com/shenweiyan/WebStack-Hugo
 
 ### Webify
 
@@ -95,9 +97,7 @@ Microsoft Edge：已提交，待审核通过
 
 自动检测失效链接工作流将在您点击 “Start Workflow” 按钮后立即运行，需要定时运行时取消cron前的#符号即可
 
-## 备注
 
-项目来源：https://github.com/shenweiyan/WebStack-Hugo
 
 </details>
 
