@@ -101,7 +101,7 @@ app.get('/data', async (req, res) => {
             }
         });
         const yamlFiles = response.data
-            .filter(file => file.name.ends着('.yaml') || file.name.endsWith('.yml'))
+            .filter(file => typeof file.name === 'string' && (file.name.endsWith('.yaml') || file.name.endsWith('.yml'))) // 确保 file.name 是字符串
             .map(file => file.name);
         res.json(yamlFiles);
     } catch (err) {
@@ -222,8 +222,7 @@ app.get('/api/updates', (req, res) => {
     res.json(updateNotifications);
 });
 
-// 其他 API 路由保持不变...
-
+// 删除 API 路由
 app.delete('/api/delete', async (req, res) => {
     const { filename, title } = req.body;
 
