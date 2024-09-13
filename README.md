@@ -34,9 +34,10 @@ Microsoft Edge：已提交，待审核通过
 
 视频已压缩过了，预览高清视频请前往公众号查看
 
-
-
-<video width="100%" height="100%" src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4" controls loop></video>
+<video width="640" height="360" controls>
+  <source src="https://github.com/rcy1314/tuchuang/raw/main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4" type="video/mp4">
+  您的浏览器不支持 HTML5 视频标签。
+</video>
 
 # 一键部署
 
@@ -107,7 +108,7 @@ TG通知预览
 4. **搜索条目**：`GET /api/search` - 在指定数据 文件中搜索条目。
 5. **删除条目**：`DELETE /api/delete` - 从指定的数据文件中删除条目。
 6. **更新条目**：`PUT /api/update` - 更新指定数据文件中的条目。
-7. 获取更新数据：`PUT /api/updates` - 获取最新更新站点的数据，已设置限制为最大存储20条。
+7. 获取更新数据：`PUT /api/updates` - 获取最新更新站点的数据，已设置限制为最大存储20条，非持久存储。
 
 ### 注意事项
 
@@ -156,17 +157,9 @@ npm install
 
 模版地址：https://github.com/rcy1314/webstack-hugo-templates
 
-### Webify
-
-[![Deploy with Webify](https://cloudbase.net/deploy.svg)](https://webify.dev/deploy?template=https://github.com/rcy1314/webstack-hugo-templates)
-
 ### Netlify
 
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/rcy1314/webstack-hugo-templates)
-
-### Cloudflare Pages
-
-[![Deploy to Cloudflare Pages](https://www.cloudflare.com/favicon.ico)](https://pages.cloudflare.com/starter?utm_medium=deploy-button&utm_source=github&utm_campaign=default&repo=https://github.com/rcy1314/webstack-hugo-templates)
 
 ### Vercel
 
@@ -175,6 +168,18 @@ npm install
 ### GitHub Pages
 
 [点击使用 GitHub Pages 部署](https://github.com/features/actions/starter-workflows/deploy-to-github-pages)
+
+### Webify
+
+[![Deploy with Webify](https://cloudbase.net/deploy.svg)](https://console.cloud.tencent.com/webify/new)
+
+复刻模版后选择导入
+
+### Cloudflare Pages
+
+[![Deploy to Cloudflare Pages](https://www.cloudflare.com/favicon.ico)](https://pages.cloudflare.com)
+
+复刻模版后选择导入
 
 ## GitHub action 工作流运行
 
