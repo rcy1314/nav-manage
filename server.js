@@ -16,8 +16,8 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const NAVIGATION_URL = process.env.NAVIGATION_URL;
 
-if (!GITHUB_TOKEN || !GITHUB_REPO || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !NAVIGATION_URL) {
-    console.error('请设置 GITHUB_TOKEN、GITHUB_REPO、TELEGRAM_BOT_TOKEN、TELEGRAM_CHAT_ID 和 NAVIGATION_URL 环境变量。');
+if (!GITHUB_TOKEN || !GITHUB_REPO) {
+    console.error('请设置 GITHUB_TOKEN 和 GITHUB_REPO 环境变量。');
     process.exit(1);
 }
 
@@ -77,6 +77,11 @@ const uploadFileToGitHub = async (filename, content) => {
 };
 
 const sendTelegramNotification = async (message) => {
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+        console.log('Telegram 通知未发送，因为缺少必需的环境变量。');
+        return;
+    }
+
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const title = "导航站收录更新通知！"; // 添加标题
 
@@ -197,7 +202,7 @@ app.post('/api/yaml', async (req, res) => {
             updateNotifications.pop(); // 保持最多20条
         }
 
-      // 发送 Telegram 通知
+        // 发送 Telegram 通知
         const message = `
 网站名称: ${notification.title}
 Logo: ${notification.logo}
@@ -205,7 +210,7 @@ Logo: ${notification.logo}
 描述: ${notification.description}
 前往导航：${NAVIGATION_URL}
 `;
-await sendTelegramNotification(message);
+        await sendTelegramNotification(message);
 
         res.send('数据添加成功！');
     } catch (err) {
