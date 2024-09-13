@@ -69,6 +69,33 @@ Microsoft Edge：已提交，待审核通过
 - `GITHUB_TOKEN`: [GitHub 访问令牌](https://github.com/settings/apps)，用于认证 API 请求。（**GitHub API 限制**：如果你在短时间内发送了太多请求，GitHub API 可能会限制你的请求。确保在调用 API 时遵循 GitHub 的速率限制。）
 - `GITHUB_REPO`: GitHub 仓库（格式：`username/repo`）。
 - `GITHUB_BRANCH`: 默认分支（可选，默认是 `main`）。
+- **`TELEGRAM_BOT_TOKEN`**：**必选**：用于发送 Telegram 消息的机器人令牌。你需要在 Telegram 中创建一个机器人并获取此令牌。
+- **`TELEGRAM_CHAT_ID`**：**必选**：指定接收 Telegram 消息的聊天 ID。可以是个人聊天 ID 或群组 ID。
+- **`NAVIGATION_URL`**：**必选**：指定导航站的 URL，用于在 Telegram 消息中提供链接。
+
+### 一键部署中没有说明的新增加
+
+环境变量增加TG频道的通知及可以使用 `fetch` 来请求更新通知
+
+```
+fetch('http://你部署的域名/api/updates')
+    .then(response => response.json())
+    .then(data => {
+        if (data.message) {
+            console.log(data.message);
+        } else {
+            data.forEach(update => {
+                console.log(`标题: ${update.title}`);
+                console.log(`Logo: ${update.logo}`);
+                console.log(`URL: ${update.url}`);
+                console.log(`描述: ${update.description}`);
+            });
+        }
+    })
+    .catch(error => console.error('获取更新通知时出错:', error));
+```
+
+
 
 ### 功能说明
 

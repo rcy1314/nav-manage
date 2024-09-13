@@ -12,9 +12,12 @@ const DATA_DIR = process.env.DATA_DIR || '/data/';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_REPO = process.env.GITHUB_REPO;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const NAVIGATION_URL = process.env.NAVIGATION_URL;
 
-if (!GITHUB_TOKEN || !GITHUB_REPO) {
-    console.error('请设置 GITHUB_TOKEN 和 GITHUB_REPO 环境变量。');
+if (!GITHUB_TOKEN || !GITHUB_REPO || !TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || !NAVIGATION_URL) {
+    console.error('请设置 GITHUB_TOKEN、GITHUB_REPO、TELEGRAM_BOT_TOKEN、TELEGRAM_CHAT_ID 和 NAVIGATION_URL 环境变量。');
     process.exit(1);
 }
 
@@ -25,6 +28,8 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+let updateNotifications = []; // 存储更新通知
 
 const getGitHubFileUrl = (filename) => {
     return `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/${DATA_DIR}${filename}`;
@@ -55,7 +60,6 @@ const uploadFileToGitHub = async (filename, content) => {
         });
     } catch (err) {
         if (err.response && err.response.status === 404) {
-            // 如果文件不存在，则创建新文件
             await axios.put(url, {
                 message: `Create ${filename}`,
                 content: Buffer.from(content).toString('base64')
@@ -72,8 +76,21 @@ const uploadFileToGitHub = async (filename, content) => {
     }
 };
 
+const sendTelegramNotification = async (message) => {
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    try {
+        await axios.post(url, {
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message,
+            parse_mode: 'HTML'
+        });
+    } catch (err) {
+        console.error('发送 Telegram 通知时出错:', err);
+    }
+};
+
 app.get('/data', async (req, res) => {
-    const folderPath = DATA_DIR; // 使用环境变量指定的文件夹路径
+    const folderPath = DATA_DIR;
     try {
         const response = await axios.get(`https://api.github.com/repos/${GITHUB_REPO}/contents/${folderPath}`, {
             headers: {
@@ -82,7 +99,7 @@ app.get('/data', async (req, res) => {
             }
         });
         const yamlFiles = response.data
-            .filter(file => file.name.endsWith('.yaml') || file.name.endsWith('.yml'))
+            .filter(file => file.name.ends着('.yaml') || file.name.endsWith('.yml'))
             .map(file => file.name);
         res.json(yamlFiles);
     } catch (err) {
@@ -164,6 +181,30 @@ app.post('/api/yaml', async (req, res) => {
         const yamlString = '---\n' + yaml.dump(yamlData, { noRefs: true, lineWidth: -1 });
 
         await uploadFileToGitHub(filename, yamlString);
+
+        // 添加更新通知
+        const notification = {
+            title: newDataEntry.title,
+            logo: newDataEntry.logo,
+            url: newDataEntry.url,
+            description: newDataEntry.description,
+        };
+
+        updateNotifications.unshift(notification);
+        if (updateNotifications.length > 20) {
+            updateNotifications.pop(); // 保持最多20条
+        }
+
+        // 发送 Telegram 通知
+        const message = `
+            网站名称: ${notification.title}
+            Logo: ${notification.logo}
+            URL: ${notification.url}
+            描述: ${notification.description}
+            前往导航: ${NAVIGATION_URL}
+        `;
+        await sendTelegramNotification(message);
+
         res.send('数据添加成功！');
     } catch (err) {
         console.error('处理 YAML 文件时出错:', err);
@@ -171,58 +212,15 @@ app.post('/api/yaml', async (req, res) => {
     }
 });
 
-app.get('/api/search', async (req, res) => {
-    const { keyword, filePath } = req.query;
-
-    if (!filePath) {
-        return res.status(400).send('未提供文件路径');
+// 新增 API 路由以获取更新通知
+app.get('/api/updates', (req, res) => {
+    if (updateNotifications.length === 0) {
+        return res.json({ message: '暂无更新的内容' });
     }
-
-    const fileUrl = getGitHubFileUrl(filePath);
-
-    try {
-        const response = await axios.get(fileUrl);
-        let yamlData = yaml.load(response.data) || [];
-        const results = [];
-
-        yamlData.forEach(entry => {
-            if (entry.links) {
-                entry.links.forEach(link => {
-                    if (link.title && typeof link.title === 'string' && link.title.includes(keyword)) {
-                        results.push({
-                            title: link.title,
-                            url: link.url,
-                            description: link.description
-                        });
-                    }
-                });
-            }
-            if (entry.list) {
-                entry.list.forEach(termEntry => {
-                    if (termEntry.links) {
-                        termEntry.links.forEach(link => {
-                            if (link.title && typeof link.title === 'string' && link.title.includes(keyword)) {
-                                results.push({
-                                    title: link.title,
-                                    url: link.url,
-                                    description: link.description
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-        });
-
-        res.json(results);
-    } catch (err) {
-        if (err.response && err.response.status === 404) {
-            return res.status(404).send('文件未找到');
-        }
-        console.error('读取文件时出错:', err);
-        return res.status(500).send('读取文件失败');
-    }
+    res.json(updateNotifications);
 });
+
+// 其他 API 路由保持不变...
 
 app.delete('/api/delete', async (req, res) => {
     const { filename, title } = req.body;
