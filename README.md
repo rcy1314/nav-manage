@@ -34,7 +34,15 @@ Microsoft Edge：已提交，待审核通过
 
 视频已压缩过了，预览高清视频请前往公众号查看
 
+<table>
+<tr>
+<td width="50%">
+
 https://github.com/rcy1314/tuchuang/raw/main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4
+
+</td>
+</tr>
+</table>
 
 # 一键部署
 
