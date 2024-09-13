@@ -202,15 +202,16 @@ app.post('/api/yaml', async (req, res) => {
             updateNotifications.pop(); // 保持最多20条
         }
 
-        // 发送 Telegram 通知
-        const message = `
+       // 发送 Telegram 通知
+const message = `
 网站名称: ${notification.title}
 Logo: ${notification.logo}
 链接: ${notification.url}
 描述: ${notification.description}
 前往导航：${NAVIGATION_URL}
-`;
-        await sendTelegramNotification(message);
+`.trim(); // 使用 trim() 去掉多余的空格和换行
+
+await sendTelegramNotification(message);
 
         res.send('数据添加成功！');
     } catch (err) {
