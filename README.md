@@ -120,9 +120,11 @@ npm install
 
 
 
-说明：这是导航站的部署模版，非本项目的一键部署
+说明：这是导航站的部署模版，非本项目的一键部署，如果一键部署链接失效请使用模版地址fork或导入部署即可！
 
 项目来源：https://github.com/shenweiyan/WebStack-Hugo
+
+模版地址：https://github.com/rcy1314/webstack-hugo-templates
 
 ### Webify
 
