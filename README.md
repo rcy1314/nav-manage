@@ -95,7 +95,9 @@ fetch('http://你部署的域名/api/updates')
     .catch(error => console.error('获取更新通知时出错:', error));
 ```
 
+TG通知预览
 
+![TG通知预览](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726221372161.png)
 
 ### 功能说明
 
