@@ -34,10 +34,7 @@ Microsoft Edge：已提交，待审核通过
 
 视频已压缩过了，预览高清视频请前往公众号查看
 
-<video width="640" height="360" controls>
-  <source src="https://github.com/rcy1314/tuchuang/raw/main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4" type="video/mp4">
-  您的浏览器不支持 HTML5 视频标签。
-</video>
+https://github.com/rcy1314/tuchuang/raw/main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4
 
 # 一键部署
 
