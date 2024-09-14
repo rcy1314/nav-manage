@@ -82,7 +82,7 @@ Microsoft Edge：已提交，待审核通过
 环境变量增加TG频道的通知及可以使用 `fetch` 来请求更新通知
 
 ```
-fetch('http://你部署的域名/api/updates')
+fetch('http://你部署的域名/api/notifications')
     .then(response => response.json())
     .then(data => {
         if (data.message) {

@@ -95,12 +95,16 @@ const sendTelegramNotification = async (message) => {
     }
 };
 
-const sendWebhookNotification = async (message) => {
+const sendWebhookNotification = async (notification) => {
     if (!WEBHOOK_URL) return;
 
     try {
         await axios.post(WEBHOOK_URL, {
-            text: message
+            title: notification.title,
+            logo: notification.logo,
+            url: notification.url,
+            description: notification.description,
+            navigation_url: NAVIGATION_URL
         });
     } catch (err) {
         console.error('发送 Webhook 通知时出错:', err);
@@ -234,7 +238,7 @@ Logo: ${notification.logo}
 `.trim();
 
         await sendTelegramNotification(message);
-        await sendWebhookNotification(message);
+        await sendWebhookNotification(notification);
 
         res.send('数据添加成功！');
     } catch (err) {
