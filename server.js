@@ -1,10 +1,9 @@
 const express = require('express');
 const fs = require('fs');
-const path = require('path');
 const yaml = require('js-yaml');
 const cors = require('cors');
 const axios = require('axios');
-
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 8980;
 
@@ -252,6 +251,48 @@ app.get('/api/notifications', (req, res) => {
         return res.json({ message: '暂无更新的内容' });
     }
     res.json(updateNotifications);
+});
+
+app.get('/api/search', async (req, res) => {
+    const { keyword, filePath } = req.query;
+
+    if (!keyword || !filePath) {
+        return res.status(400).send('缺少关键词或文件路径');
+    }
+
+    const fileUrl = getGitHubFileUrl(filePath);
+
+    try {
+        const response = await axios.get(fileUrl);
+        const yamlData = yaml.load(response.data) || [];
+
+        const results = [];
+        yamlData.forEach(entry => {
+            if (entry.links) {
+                entry.links.forEach(link => {
+                    if (link.title.includes(keyword) || link.description.includes(keyword)) {
+                        results.push(link);
+                    }
+                });
+            }
+            if (entry.list) {
+                entry.list.forEach(termEntry => {
+                    if (termEntry.links) {
+                        termEntry.links.forEach(link => {
+                            if (link.title.includes(keyword) || link.description.includes(keyword)) {
+                                results.push(link);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+        res.json(results);
+    } catch (err) {
+        console.error('搜索处理时出错:', err.response ? err.response.data : err);
+        return res.status(500).send('搜索处理失败');
+    }
 });
 
 app.delete('/api/delete', async (req, res) => {
