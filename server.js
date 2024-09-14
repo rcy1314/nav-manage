@@ -270,8 +270,10 @@ app.get('/api/search', async (req, res) => {
         yamlData.forEach(entry => {
             if (entry.links) {
                 entry.links.forEach(link => {
-                    if ((link.title && link.title.includes(keyword)) || 
-                        (link.description && link.description.includes(keyword))) {
+                    if (
+                        (typeof link.title === 'string' && link.title.includes(keyword)) || 
+                        (typeof link.description === 'string' && link.description.includes(keyword))
+                    ) {
                         results.push(link);
                     }
                 });
@@ -280,8 +282,10 @@ app.get('/api/search', async (req, res) => {
                 entry.list.forEach(termEntry => {
                     if (termEntry.links) {
                         termEntry.links.forEach(link => {
-                            if ((link.title && link.title.includes(keyword)) || 
-                                (link.description && link.description.includes(keyword))) {
+                            if (
+                                (typeof link.title === 'string' && link.title.includes(keyword)) || 
+                                (typeof link.description === 'string' && link.description.includes(keyword))
+                            ) {
                                 results.push(link);
                             }
                         });
