@@ -60,7 +60,7 @@ Gooogle chrome：已提交，待审核通过
 
 Microsoft Edge：已提交，待审核通过
 
-暂未通过审核，你可以访问主页使用终端菜单功能或添加我的微信后，发送关键词”nav扩展“来获取前端扩展
+暂未通过审核，你可以访问主页使用双击头像处的终端菜单功能 或 添加我的微信后，发送关键词”nav扩展“来获取前端扩展
 
 ![](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726326099188.png)
 
