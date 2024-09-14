@@ -15,6 +15,8 @@ const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const NAVIGATION_URL = process.env.NAVIGATION_URL;
+const WEBHOOK_URL = process.env.WEBHOOK_URL;
+const STORAGE_FILE_PATH = process.env.STORAGE_FILE_PATH;
 
 if (!GITHUB_TOKEN || !GITHUB_REPO) {
     console.error('请设置 GITHUB_TOKEN 和 GITHUB_REPO 环境变量。');
@@ -77,22 +79,42 @@ const uploadFileToGitHub = async (filename, content) => {
 };
 
 const sendTelegramNotification = async (message) => {
-    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-        console.log('Telegram 通知未发送，因为缺少必需的环境变量。');
-        return;
-    }
+    if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
 
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-    const title = "导航站收录更新通知！"; // 添加标题
+    const title = "导航站收录更新通知！";
 
     try {
         await axios.post(url, {
             chat_id: TELEGRAM_CHAT_ID,
-            text: `<b>${title}</b>\n${message}`, // 将标题和内容结合
+            text: `<b>${title}</b>\n${message}`,
             parse_mode: 'HTML'
         });
     } catch (err) {
         console.error('发送 Telegram 通知时出错:', err);
+    }
+};
+
+const sendWebhookNotification = async (message) => {
+    if (!WEBHOOK_URL) return;
+
+    try {
+        await axios.post(WEBHOOK_URL, {
+            text: message
+        });
+    } catch (err) {
+        console.error('发送 Webhook 通知时出错:', err);
+    }
+};
+
+const saveNotifications = () => {
+    if (!STORAGE_FILE_PATH) return;
+
+    try {
+        const dataToSave = JSON.stringify(updateNotifications.slice(0, 40), null, 2);
+        fs.writeFileSync(STORAGE_FILE_PATH, dataToSave);
+    } catch (err) {
+        console.error('保存通知数据时出错:', err);
     }
 };
 
@@ -106,7 +128,7 @@ app.get('/data', async (req, res) => {
             }
         });
         const yamlFiles = response.data
-            .filter(file => typeof file.name === 'string' && (file.name.endsWith('.yaml') || file.name.endsWith('.yml'))) // 确保 file.name 是字符串
+            .filter(file => typeof file.name === 'string' && (file.name.endsWith('.yaml') || file.name.endsWith('.yml')))
             .map(file => file.name);
         res.json(yamlFiles);
     } catch (err) {
@@ -189,7 +211,6 @@ app.post('/api/yaml', async (req, res) => {
 
         await uploadFileToGitHub(filename, yamlString);
 
-        // 添加更新通知
         const notification = {
             title: newDataEntry.title,
             logo: newDataEntry.logo,
@@ -198,20 +219,22 @@ app.post('/api/yaml', async (req, res) => {
         };
 
         updateNotifications.unshift(notification);
-        if (updateNotifications.length > 20) {
-            updateNotifications.pop(); // 保持最多20条
+        if (updateNotifications.length > 40) {
+            updateNotifications.pop();
         }
 
-       // 发送 Telegram 通知
-const message = `
+        saveNotifications();
+
+        const message = `
 网站名称: ${notification.title}
 Logo: ${notification.logo}
 链接: ${notification.url}
 描述: ${notification.description}
 前往导航：${NAVIGATION_URL}
-`.trim(); // 使用 trim() 去掉多余的空格和换行
+`.trim();
 
-await sendTelegramNotification(message);
+        await sendTelegramNotification(message);
+        await sendWebhookNotification(message);
 
         res.send('数据添加成功！');
     } catch (err) {
@@ -220,15 +243,13 @@ await sendTelegramNotification(message);
     }
 });
 
-// 新增 API 路由以获取更新通知
-app.get('/api/updates', (req, res) => {
+app.get('/api/notifications', (req, res) => {
     if (updateNotifications.length === 0) {
         return res.json({ message: '暂无更新的内容' });
     }
     res.json(updateNotifications);
 });
 
-// 删除 API 路由
 app.delete('/api/delete', async (req, res) => {
     const { filename, title } = req.body;
 

@@ -30,19 +30,15 @@ Gooogle chrome：已提交，待审核通过
 
 Microsoft Edge：已提交，待审核通过
 
+暂未通过审核，你可以访问主页添加我的微信后，发送关键词”nav扩展“来获取前端扩展
+
 ## 视频介绍
 
 视频已压缩过了，预览高清视频请前往公众号查看
 
-<table>
-<tr>
-<td width="50%">
 
-https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4
 
-</td>
-</tr>
-</table>
+<video width="100%" height="100%" src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4" controls loop></video>
 
 # 一键部署
 
@@ -78,8 +74,10 @@ https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/%E6%89%A9%E5%B1%95%E4
 - **`TELEGRAM_BOT_TOKEN`**：**可选**：用于发送 Telegram 消息的机器人令牌。你需要在 Telegram 中创建一个机器人并获取此令牌。
 - **`TELEGRAM_CHAT_ID`**：**可选**：指定接收 Telegram 消息的聊天 ID。可以是个人聊天 ID 或群组 ID。
 - **`NAVIGATION_URL`**：**可选**：指定导航站的 URL，用于在 Telegram 消息中提供链接。
+-  `WEBHOOK_URL` ：可选：**Webhook 通知**，可联动自动化集成推送到其它平台
+-  `STORAGE_FILE_PATH`：可选：持久化存储更新数据，用于嵌入网站等方式
 
-### 一键部署中没有说明的新增加
+### 获取更新通知请求示例
 
 环境变量增加TG频道的通知及可以使用 `fetch` 来请求更新通知
 
@@ -113,7 +111,9 @@ TG通知预览
 4. **搜索条目**：`GET /api/search` - 在指定数据 文件中搜索条目。
 5. **删除条目**：`DELETE /api/delete` - 从指定的数据文件中删除条目。
 6. **更新条目**：`PUT /api/update` - 更新指定数据文件中的条目。
-7. 获取更新数据：`PUT /api/updates` - 获取最新更新站点的数据，已设置限制为最大存储20条，非持久存储。
+7. 获取更新数据：`GET /api/notifications` - 获取最新更新站点的数据。
+8. **Webhook 通知**：通过环境变量 `WEBHOOK_URL` 发送 Webhook 通知。可选设置
+9. **持久化存储**：通过 `STORAGE_FILE_PATH` 环境变量指定仓库路径json文件来存储更新数据，已设置限制为最大存储40条
 
 ### 注意事项
 
