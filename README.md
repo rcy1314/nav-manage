@@ -10,19 +10,49 @@ Nav-Manage由后端API+前端扩展组成
 
 服务基础为[WebStack 网址导航 Hugo 主题](https://github.com/shenweiyan/WebStack-Hugo)
 
-这是为静态导航而开发的功能增强为主的扩展，本仓库为后端，前端请安装扩展使用！
+数据格式标准为
+
+```
+---
+- taxonomy: 常用推荐
+  icon: far fa-star
+  links:
+    - title: 频道页面
+      logo: https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/7877y.jpeg
+      url: https://tg.noisework.cn
+      description: 我的TG频道页面
+    - title: NOISE&Blog
+      logo: pin.png
+      url: https://www.noiseblogs.top
+      description: 我的博客站
+    - title: NOISE主页
+      logo: https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/20230801/NOISELOGO.4cy9whhpaf00.jpg
+      url: https://www.noisework.cn/home
+      description: 个人引导页，站点入口
+- taxonomy: 媒体创作
+  icon: fas fa-folder-open fa-lg
+  list:
+    - term: CG三维
+      links:
+        - title: CG爱好者
+          logo: www.cgahz.com.ico
+          url: http://www.cgahz.com
+          description: 影视后期相关资源
+        - title: CG99-CG设计网
+          logo: cg99.ico
+          url: https://www.cg99.com
+          description: 专注全球CG设计行业，以CG模型为主的资源下载和分享平台
+```
+
+这是为静态导航而开发的功能增强为主的扩展，开源仓库为后端，前端请安装扩展使用！
+
+后端支持一键部署到 Railway和Zeabur
+
+使用该项目，你可以轻松添加删除你的网站书签、更新推送通知到你的社群，更好的获取网站更新内容及带来一些自动化的体验！
 
 演示导航站：[NOISE导航](https://www.noisedh.link)
 
-待添加…
-
-待添加…
-
-待添加…
-
-待添加…
-
-待添加…
+![img](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726306633557.png)
 
 ## 安装扩展
 
@@ -30,7 +60,9 @@ Gooogle chrome：已提交，待审核通过
 
 Microsoft Edge：已提交，待审核通过
 
-暂未通过审核，你可以访问主页添加我的微信后，发送关键词”nav扩展“来获取前端扩展
+暂未通过审核，你可以访问主页使用终端菜单功能或添加我的微信后，发送关键词”nav扩展“来获取前端扩展
+
+![](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726326099188.png)
 
 ## 视频介绍
 
@@ -75,13 +107,76 @@ Microsoft Edge：已提交，待审核通过
 - **`TELEGRAM_CHAT_ID`**：**可选**：指定接收 Telegram 消息的聊天 ID。可以是个人聊天 ID 或群组 ID。
 - **`NAVIGATION_URL`**：**可选**：指定导航站的 URL，用于在 Telegram 消息中提供链接。
 -  `WEBHOOK_URL` ：可选：**Webhook 通知**，可联动自动化集成推送到其它平台
--  `STORAGE_FILE_PATH`：可选：持久化存储更新数据，用于嵌入网站等方式
+-  `STORAGE_FILE_PATH`：可选：持久化存储更新数据，用于嵌入网站等
 
-### 获取更新通知请求示例
+### API请求示例
 
-环境变量增加TG频道的通知及可以使用 `fetch` 来请求更新通知
+### 添加数据到文件
 
+```javascript
+fetch('http://你部署的域名/api/yaml', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        filePath: 'path/to/file.yaml',
+        newData: { key: 'value' }
+    })
+})
+.then(response => response.json())
+.then(data => {
+    console.log('添加数据响应:', data);
+})
+.catch(error => console.error('添加数据时出错:', error));
 ```
+
+### 删除条目
+
+```javascript
+fetch('http://你部署的域名/api/delete', {
+    method: 'DELETE',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        filePath: 'path/to/file.yaml',
+        entryToDelete: { key: 'value' }
+    })
+})
+.then(response => response.json())
+.then(data => {
+    console.log('删除条目响应:', data);
+})
+.catch(error => console.error('删除条目时出错:', error));
+```
+
+### 更新条目
+
+```javascript
+fetch('http://你部署的域名/api/update', {
+    method: 'PUT',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        filePath: 'path/to/file.yaml',
+        entryToUpdate: { key: 'oldValue' },
+        newData: { key: 'newValue' }
+    })
+})
+.then(response => response.json())
+.then(data => {
+    console.log('更新条目响应:', data);
+})
+.catch(error => console.error('更新条目时出错:', error));
+```
+
+请确保将 `'http://你部署的域名'` 替换为实际的域名，并根据需要调整路径和参数。
+
+### 获取更新通知
+
+```javascript
 fetch('http://你部署的域名/api/notifications')
     .then(response => response.json())
     .then(data => {
@@ -99,9 +194,85 @@ fetch('http://你部署的域名/api/notifications')
     .catch(error => console.error('获取更新通知时出错:', error));
 ```
 
+### 搜索请求
+
+```javascript
+const keyword = '示例关键词';
+const filePath = 'path/to/file.yaml';
+
+fetch(`http://你部署的域名/api/search?keyword=${encodeURIComponent(keyword)}&filePath=${encodeURIComponent(filePath)}`)
+    .then(response => response.json())
+    .then(results => {
+        results.forEach(link => {
+            console.log(`标题: ${link.title}`);
+            console.log(`描述: ${link.description}`);
+            console.log(`URL: ${link.url}`);
+        });
+    })
+    .catch(error => console.error('搜索请求失败:', error));
+```
+
+### Webhook 触发
+
+```javascript
+fetch('http://你部署的域名/api/webhook', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        event: 'exampleEvent',
+        data: { key: 'value' }
+    })
+})
+.then(response => response.json())
+.then(data => {
+    console.log('Webhook 响应:', data);
+})
+.catch(error => console.error('Webhook 请求失败:', error));
+```
+
+### 获取文件
+
+```javascript
+fetch('http://你部署的域名/api/files?filePath=path/to/file.yaml')
+    .then(response => response.json())
+    .then(data => {
+        console.log('文件内容:', data);
+    })
+    .catch(error => console.error('获取文件时出错:', error));
+```
+
+### 删除文件
+
+```javascript
+fetch('http://你部署的域名/api/files', {
+    method: 'DELETE',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        filePath: 'path/to/file.yaml'
+    })
+})
+.then(response => response.json())
+.then(data => {
+    console.log('删除文件响应:', data);
+})
+.catch(error => console.error('删除文件时出错:', error));
+```
+
+⚠️
+
+示例为 `'http://你部署的域名/API'`
+
 TG通知预览
 
 ![TG通知预览](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726221372161.png)
+
+结合webhook微信的通知
+
+<img src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/IMG_4083.jpg" alt="IMG_4083" style="zoom:33%;" />
 
 ### 功能说明
 
@@ -117,9 +288,9 @@ TG通知预览
 
 ### 注意事项
 
-确保在 GitHub 上创建一个访问令牌，并为其分配必要的权限（如 repo 权限）。
+确保在 GitHub 上创建一个访问令牌，并为其分配必要的权限（必须包含读取和写入仓库权限）。
 
-在处理 数据文件时，你需要获取文件的 SHA 值，以便在更新时使用。可以在读取文件时获取该值。
+![](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726098561502.png)
 
 ### 安装所有依赖的命令
 
@@ -129,27 +300,33 @@ TG通知预览
 npm install
 ```
 
-## 本地运行使用
+## 本地及云服务器运行使用
 
-注意！本地的代码完全不同，需要自定义你的文件路径然后启动服务！
+前提，本地或云服务器有安装node.js，版本兼容16及以上
 
-待添加…
+下载安装：https://nodejs.org/zh-cn/download/package-manager
 
-待添加…
+仓库中的next-local文件夹中的文件为运行文件，你可以下载到本地使用
 
-待添加…
+注意！本地的代码和一键部署的不同，需要你手动修改代码中文件路径然后启动服务！
 
-## 云服务器部署使用
+- 修改用于存储网站更新数据的json文件为你自己的实际文件路径（必须设置）
+- 修改所有标注”请修改你的文件实际路径“为你的文件路径，比如我把server放入根目录，则数据文件路径为/data/ （此项必须设置）
+- 修改你的wenhook地址为实际使用地址（可忽略保持空字符）
+- 修改telegram bot token及你的tg频道（可为空）
+- 361行中添加了运行hugo的命令，如果你没有想让网站自动更新可删除该命令代码
 
-注意！本地的代码完全不同，需要自定义你的文件路径然后启动服务！
+修改后，运行安装依赖
 
-待添加…
+```
+npm install express js-yaml cors axios
+```
 
-待添加…
-
-待添加…
+如果你的云服务器已安装好node.js和依赖，可以使用进程管理器一键启动
 
 ## 一键部署导航站
+
+这是为没有部署导航站的朋友准备的
 
 <details>
 <summary>✅ 【点击展开】</summary>
@@ -204,7 +381,9 @@ npm install
 
 ## 补充
 
-要使用自动化检测并删除失效链接请前往详细文档查看
+后续再部署详细文档
+
+如有问题可以通过主页和我取得联系
 
 
 
