@@ -270,7 +270,8 @@ app.get('/api/search', async (req, res) => {
         yamlData.forEach(entry => {
             if (entry.links) {
                 entry.links.forEach(link => {
-                    if (link.title.includes(keyword) || link.description.includes(keyword)) {
+                    if ((link.title && link.title.includes(keyword)) || 
+                        (link.description && link.description.includes(keyword))) {
                         results.push(link);
                     }
                 });
@@ -279,7 +280,8 @@ app.get('/api/search', async (req, res) => {
                 entry.list.forEach(termEntry => {
                     if (termEntry.links) {
                         termEntry.links.forEach(link => {
-                            if (link.title.includes(keyword) || link.description.includes(keyword)) {
+                            if ((link.title && link.title.includes(keyword)) || 
+                                (link.description && link.description.includes(keyword))) {
                                 results.push(link);
                             }
                         });
@@ -290,7 +292,7 @@ app.get('/api/search', async (req, res) => {
 
         res.json(results);
     } catch (err) {
-        console.error('搜索处理时出错:', err.response ? err.response.data : err);
+        console.error('搜索处理时出错:', err);
         return res.status(500).send('搜索处理失败');
     }
 });
