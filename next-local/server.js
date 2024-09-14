@@ -34,7 +34,7 @@ function writeNotifications(notifications) {
 }
 
 async function sendWebhookNotification(notification) {
-    const webhookUrl = 'https://webhooks.com/api/v1/Uaz3vYUpsHkX1TXGw5xGc'; // 替换为你的 webhook URL
+    const webhookUrl = 'webhook URL'; // 替换为你的 webhook URL
     if (!webhookUrl) {
         console.log('Webhook URL 未设置，跳过发送 webhook 通知。');
         return; 
@@ -210,8 +210,8 @@ app.post('/api/yaml', async (req, res) => {
 
 // 发送 Telegram 通知的函数
 async function sendTelegramNotification(notification, term, taxonomy) {
-    const telegramChatId = '-1001178591807'; // 替换为你的 Telegram 聊天 ID
-    const telegramBotToken = '1553564139:AAHeTAl0LfqkOlHHWCVQHPglqOPsqQ3C7oM'; // 替换为你的 Telegram Bot Token
+    const telegramChatId = 'Telegram 聊天 ID'; // 替换为你的 Telegram 聊天 ID
+    const telegramBotToken = 'Bot Token'; // 替换为你的 Telegram Bot Token
 
     let message = `导航站收录更新通知！\n`;
 
