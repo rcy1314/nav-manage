@@ -10,39 +10,7 @@ Nav-Manage由后端API+前端扩展组成
 
 服务基础为[WebStack 网址导航 Hugo 主题](https://github.com/shenweiyan/WebStack-Hugo)
 
-数据格式标准为
-
-```
----
-- taxonomy: 常用推荐
-  icon: far fa-star
-  links:
-    - title: 频道页面
-      logo: https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/7877y.jpeg
-      url: https://tg.noisework.cn
-      description: 我的TG频道页面
-    - title: NOISE&Blog
-      logo: pin.png
-      url: https://www.noiseblogs.top
-      description: 我的博客站
-    - title: NOISE主页
-      logo: https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/20230801/NOISELOGO.4cy9whhpaf00.jpg
-      url: https://www.noisework.cn/home
-      description: 个人引导页，站点入口
-- taxonomy: 媒体创作
-  icon: fas fa-folder-open fa-lg
-  list:
-    - term: CG三维
-      links:
-        - title: CG爱好者
-          logo: www.cgahz.com.ico
-          url: http://www.cgahz.com
-          description: 影视后期相关资源
-        - title: CG99-CG设计网
-          logo: cg99.ico
-          url: https://www.cg99.com
-          description: 专注全球CG设计行业，以CG模型为主的资源下载和分享平台
-```
+数据格式遵循主题下的标准格式
 
 这是为静态导航而开发的功能增强为主的扩展，开源仓库为后端，前端请安装扩展使用！
 
@@ -58,9 +26,10 @@ Nav-Manage由后端API+前端扩展组成
 
 Gooogle chrome：已提交，待审核通过
 
-Microsoft Edge：已提交，待审核通过
+Microsoft Edge：[点击安装](https://microsoftedge.microsoft.com/addons/detail/pogpiicgclbpchehmdgdeianhgpnjanl)
 
-暂未通过审核，你可以访问主页使用双击头像处的终端菜单功能 或 添加我的微信后，发送关键词”nav扩展“来获取前端扩展
+获得开发版：
+你可以访问主页使用双击头像处的终端菜单功能 或 添加我的微信后，发送关键词”nav扩展“来获取前端扩展
 
 ![](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726326099188.png)
 
@@ -70,7 +39,7 @@ Microsoft Edge：已提交，待审核通过
 
 
 
-<video width="100%" height="100%" src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4" controls loop></video>
+<video width="100%" height="100%" src="https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/%E6%89%A9%E5%B1%95%E4%BB%8B%E7%BB%8D01.mp4" ></video>
 
 # 一键部署
 
@@ -384,6 +353,8 @@ npm install express js-yaml cors axios
 后续再部署详细文档
 
 如有问题可以通过主页和我取得联系
+
+ 
 
 
 
