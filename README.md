@@ -24,7 +24,7 @@ Nav-Manage由后端API+前端扩展组成
 
 ## 安装扩展
 
-Gooogle chrome：已提交，待审核通过
+Gooogle chrome：[点击安装](https://chromewebstore.google.com/detail/nav-manage-%E5%AF%BC%E8%88%AA%E4%B9%A6%E7%AD%BE%E7%AE%A1%E7%90%86%E5%99%A8/ajoeaonfioiahhhhccafflalopoolbop?authuser=0&hl=zh-CN)
 
 Microsoft Edge：[点击安装](https://microsoftedge.microsoft.com/addons/detail/pogpiicgclbpchehmdgdeianhgpnjanl)
 
