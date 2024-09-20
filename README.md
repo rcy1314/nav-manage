@@ -70,7 +70,7 @@ Microsoft Edge：[点击安装](https://microsoftedge.microsoft.com/addons/detai
 - **`TELEGRAM_CHAT_ID`**：**可选**：指定接收 Telegram 消息的聊天 ID。可以是个人聊天 ID 或群组 ID。
 - **`NAVIGATION_URL`**：**可选**：指定导航站的 URL，用于在 Telegram 消息中提供链接。
 -  `WEBHOOK_URL` ：可选：**Webhook 通知**，可联动自动化集成推送到其它平台
--  `STORAGE_FILE_PATH`：可选：持久化存储更新数据，用于嵌入网站等
+-  `STORAGE_FILE_PATH`：可选：持久化存储更新数据，用于嵌入网站等，示例·：`/data.json` 必须是完整文件路径哦！
 
 ### API请求示例
 
