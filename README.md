@@ -287,6 +287,14 @@ npm install express js-yaml cors axios
 
 如果你的云服务器已安装好node.js和依赖，可以使用进程管理器一键启动
 
+启动命令为`npm start`
+
+### 服务器运行优势
+
+没有GitHub api限制，可以随时添加修改，当然放本地效果也是一样
+
+![1727601511008](https://s2.loli.net/2024/09/29/L9oD2bX6NpSAGFO.png)
+
 ## 一键部署导航站
 
 这是为没有部署导航站的朋友准备的
