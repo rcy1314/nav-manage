@@ -352,12 +352,14 @@ npm install express js-yaml cors axios
 
 ## 补充
 
-后续再部署详细文档
+后续有更多人在意时会再部署更详细文档
 
 如有问题可以通过主页和我取得联系
 
- 
+你也可以自己再增加其它功能，比如，导入导出书签或备份等
 
+ 最初的本地版V0版本
 
+![1725915567699](https://s2.loli.net/2024/10/04/PbITCYk3oMwHvXB.png)
 
 > 如果你觉得本项目对你有所帮助，请[赞赏支持](https://www.noisework.cn/e/zhichi)它！
