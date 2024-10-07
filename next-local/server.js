@@ -48,6 +48,125 @@ async function sendWebhookNotification(notification) {
     }
 }
 
+
+// 输出书签格式的目录
+const BOOKMARKS_OUTPUT_DIR = path.resolve('/请修改为你的文件实际路径/bookmarks/');
+
+// 确保目录存在的辅助函数
+async function ensureDirectoryExists(dirPath) {
+    try {
+        await fs.promises.access(dirPath);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            await fs.promises.mkdir(dirPath, { recursive: true });
+        } else {
+            throw error;
+        }
+    }
+}
+
+// 删除文件的辅助函数
+async function deleteOldBookmarks(dirPath) {
+    const files = await fs.promises.readdir(dirPath);
+    const now = Date.now();
+
+    for (const file of files) {
+        const filePath = path.join(dirPath, file);
+        const stats = await fs.promises.stat(filePath);
+
+        // 检查文件是否超过 3 分钟（180000 毫秒）
+        if (now - stats.mtimeMs > 180000) {
+            await fs.promises.unlink(filePath);
+            console.log(`Deleted old bookmark file: ${filePath}`);
+        }
+    }
+}
+
+// 启动定时器每 3 分钟检查并删除旧文件
+setInterval(() => {
+    deleteOldBookmarks(BOOKMARKS_OUTPUT_DIR).catch(err => console.error('Error deleting old bookmarks:', err));
+}, 180000); // 180000 毫秒 = 3 分钟
+
+// 导出为书签格式的路由
+app.get('/api/export-bookmarks', async (req, res) => {
+    console.log('Received request for export-bookmarks:', req.query);
+    const { outputDir } = req.query; // 从查询参数获取输出目录
+    const dataDir = path.resolve('请修改为你的文件实际路径/data/');
+    const bookmarks = [];
+
+    // 确保输出目录存在
+    const outputPath = path.resolve(outputDir || BOOKMARKS_OUTPUT_DIR);
+    await ensureDirectoryExists(outputPath);
+
+    const yamlFiles = await fs.promises.readdir(dataDir);
+
+    for (const file of yamlFiles) {
+        if (file.endsWith('.yaml') || file.endsWith('.yml')) {
+            const filePath = path.join(dataDir, file);
+            const yamlContent = await fs.promises.readFile(filePath, 'utf8');
+            const yamlData = yaml.load(yamlContent);
+
+            yamlData.forEach(category => {
+                // 添加一级标题
+                const taxonomyTitle = category.taxonomy; 
+                if (taxonomyTitle) {
+                    bookmarks.push({ title: taxonomyTitle, url: '', isHeader: true });
+                }
+
+                if (Array.isArray(category.links)) {
+                    category.links.forEach(link => {
+                        bookmarks.push({ title: link.title, url: link.url });
+                    });
+                }
+
+                if (Array.isArray(category.list)) {
+                    category.list.forEach(subCategory => {
+                        // 添加二级标题
+                        const termTitle = subCategory.term; 
+                        if (termTitle) {
+                            bookmarks.push({ title: termTitle, url: '', isHeader: true });
+                        }
+
+                        if (Array.isArray(subCategory.links)) {
+                            subCategory.links.forEach(link => {
+                                bookmarks.push({ title: link.title, url: link.url });
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    // 生成书签 HTML
+    let bookmarkHtml = '<!DOCTYPE NETSCAPE-Bookmark-file-1>\n';
+    bookmarkHtml += '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n';
+    bookmarkHtml += '<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n';
+
+    bookmarks.forEach(bookmark => {
+        if (bookmark.isHeader) {
+            bookmarkHtml += `    <DT><H3 ADD_DATE="${Date.now()}">${bookmark.title}</H3>\n`;
+        } else {
+            bookmarkHtml += `    <DT><A HREF="${bookmark.url}">${bookmark.title}</A>\n`;
+        }
+    });
+
+    bookmarkHtml += '</DL><p>';
+
+    // 写入书签文件
+    const outputFilename = `bookmarks_${Date.now()}.html`;
+    const fullOutputPath = path.join(outputPath, outputFilename);
+    await fs.promises.writeFile(fullOutputPath, bookmarkHtml, 'utf8');
+
+    // 直接下载生成的书签文件
+    res.download(fullOutputPath, outputFilename, (err) => {
+        if (err) {
+            console.error('Error downloading file:', err);
+            res.status(500).send('文件下载失败');
+        }
+    });
+});
+
 // GET 路由，用于获取 data 文件夹中的文件列表
 app.get('/data', (req, res) => {
     const dataDir = path.resolve('请修改为你的文件实际路径/data/');
