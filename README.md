@@ -22,6 +22,11 @@ Nav-Manage由后端API+前端扩展组成
 
 ![img](https://jsd.cdn.noisework.cn/gh/rcy1314/tuchuang@main/uPic/1726306633557.png)
 
+## 更新
+
+- 调整解决前端扩展因点击搜索时整体界面未铺满的问题
+- 10月7日-本地及云服务器部署文件增加导入导出浏览器格式文件，导出导航站yml文件时为浏览器书签格式html文件，带有导航站本身的一级目录标题及二级目录标题并设置输出路径下生成的文件自动3分钟删除
+
 ## 安装扩展
 
 Gooogle chrome：[点击安装](https://chrome.google.com/webstore/detail/ajoeaonfioiahhhhccafflalopoolbop)
