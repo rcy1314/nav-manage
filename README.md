@@ -22,7 +22,7 @@ Nav-Manage 由两部分组成：
 说明：本节是“仅后端 API”部署，不包含 Hugo 主题网站的静态服务。  
 如果你需要“一次性部署 Hugo 主题网站 + Docker 运行教程”，请先看：
 
-- [DOCKER_HUGO_THEME_DEPLOY.md](file:///Library/Github/noisedh/DOCKER_HUGO_THEME_DEPLOY.md)
+- [noisedh-nav](https://github.com/rcy1314/noisedh-nav)
 
 已发布镜像：`noise233/nav-manage`（默认端口 `8990`）。
 
@@ -125,31 +125,6 @@ curl -X POST "http://localhost:8990/api/invalid-links/check" \
 curl -O "http://localhost:8990/api/export-bookmarks"
 ```
 
-完整接口与参数请以 [DEPLOYMENT.md](file:///Library/Github/noisedh/extension/yaml-server/DEPLOYMENT.md) 为准。
-
-## GitHub action 工作流运行
-
-构建页面工作流将在您点击 “Start Workflow” 按钮后立即运行，并且在每次 `main` 分支有变动时也会自动运行
-
-自动检测失效链接工作流将在您点击 “Start Workflow” 按钮后立即运行，需要定时运行时取消cron前的#符号即可
-
-
-
-</details>
-
-## 致谢
-
-
-
- 感谢[shenweiyan](https://github.com/shenweiyan)带来的[WebStack 网址导航 Hugo 主题](https://github.com/shenweiyan/WebStack-Hugo)项目
-
-## 补充
-
-
-你也可以自己再增加其它功能，比如，导入导出书签或备份等
-
- 最初的本地版V0版本
-
-![1725915567699](https://s2.loli.net/2024/10/04/PbITCYk3oMwHvXB.png)
+完整接口与参数请以[noisedh-nav](https://github.com/rcy1314/noisedh-nav)为准。
 
 > 如果你觉得本项目对你有所帮助，请[赞赏支持](https://www.noisework.cn/e/zhichi)它！
