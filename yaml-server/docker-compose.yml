@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  yaml-server:
+    build: .
+    container_name: noisedh-yaml-server
+    ports:
+      - "8990:8990"
+    environment:
+      - PORT=8990
+      - ENABLE_HUGO=false
+      - BASE_DIR=/app/hugo
+      - API_TOKEN=change_me
+      - REMOTE_UPDATE_WEBHOOK=
+      - WEBHOOK_URL=
+      - TELEGRAM_CHAT_ID=
+      - TELEGRAM_BOT_TOKEN=
+    volumes:
+      - /path/to/your/hugo-or-data-root:/app/hugo
+      - ./notifications.json:/app/server/notifications.json
+      - ./trigger_hugo.sh:/app/server/trigger_hugo.sh
+    restart: always

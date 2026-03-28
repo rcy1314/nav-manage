@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nav Manage</title>
+  <style>
+    :root{
+      --bg:#f7f9ff;
+      --card:#ffffff;
+      --border:rgba(15,23,42,.10);
+      --text:rgba(15,23,42,.92);
+      --muted:rgba(15,23,42,.55);
+      --accent:#4f8cff;
+      --shadow:0 12px 30px rgba(15,23,42,.10);
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans";
+      background:var(--bg);
+      color:var(--text);
+    }
+    .wrap{max-width:860px;margin:26px auto;padding:0 18px;}
+    .title{
+      text-align:center;
+      font-size:36px;
+      font-weight:900;
+      margin:10px 0 4px;
+    }
+    .subtitle{
+      text-align:center;
+      color:var(--muted);
+      margin:0 0 22px;
+      font-weight:700;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      padding:18px 18px 16px;
+      margin-bottom:18px;
+    }
+    .card h2{
+      margin:0 0 14px;
+      font-size:18px;
+      font-weight:900;
+    }
+    .field{margin-top:12px;}
+    label{display:block;font-size:13px;color:rgba(15,23,42,.65);font-weight:800;margin-bottom:8px;}
+    input,select{
+      width:100%;
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid rgba(15,23,42,.10);
+      background:#fff;
+      color:var(--text);
+      outline:none;
+    }
+    input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent);}
+    .hint{font-size:12px;color:var(--muted);margin-top:8px;}
+    .inline{display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+    .check{display:inline-flex;gap:10px;align-items:center;font-weight:800;color:rgba(15,23,42,.78);}
+    .btn-row{display:flex;justify-content:center;margin:16px 0 0;}
+    .btn{
+      border:none;
+      border-radius:14px;
+      padding:12px 18px;
+      cursor:pointer;
+      font-weight:900;
+      color:#fff;
+      background:linear-gradient(90deg,#4f8cff,#7c4dff);
+      min-width:160px;
+    }
+    .status{margin-top:10px;text-align:center;color:var(--muted);font-size:12px;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    @media (max-width:760px){.grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">Nav Manage</div>
+    <div class="subtitle">扩展功能选项配置</div>
+
+    <div class="card">
+      <h2>数据源模式</h2>
+      <div class="field">
+        <label for="mode">同步模式</label>
+        <select id="mode">
+          <option value="cloud">云服务器（推荐）</option>
+          <option value="github">GitHub</option>
+        </select>
+        <div class="hint">选择您的导航数据存储位置</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>云服务器配置</h2>
+      <div class="field">
+        <label for="serverUrl">服务器地址 (API URL)</label>
+        <input id="serverUrl" type="text" placeholder="https://api.your-domain.com">
+        <div class="hint">部署了 yaml-server 的地址</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>身份验证</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="serverToken">云服务器 Token</label>
+          <input id="serverToken" type="password" placeholder="用于 yaml-server 的管理员 Token">
+          <div class="hint">云服务器写入鉴权（Authorization: Bearer ...）</div>
+        </div>
+        <div class="field">
+          <label for="githubToken">GitHub Token (PAT)</label>
+          <input id="githubToken" type="password" placeholder="用于 GitHub API 的 Personal Access Token">
+          <div class="hint">GitHub 写入鉴权（Authorization: token ...）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>推送通知（后端）</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="webhookUrl">Webhook 推送地址</label>
+          <input id="webhookUrl" type="text" placeholder="https://your-webhook.example.com">
+          <div class="hint">用于收录更新推送（yaml-server 的 WEBHOOK_URL / 服务端设置）</div>
+        </div>
+        <div class="field">
+          <label for="telegramChatId">Telegram Chat ID</label>
+          <input id="telegramChatId" type="text" placeholder="-100xxxxxx">
+          <div class="hint">用于 Telegram 推送（可留空关闭）</div>
+        </div>
+        <div class="field">
+          <label for="telegramBotToken">Telegram Bot Token</label>
+          <input id="telegramBotToken" type="password" placeholder="123456:ABCDEF...">
+          <div class="hint">用于 Telegram 推送（可留空关闭）</div>
+        </div>
+        <div class="field">
+          <label for="rssChannelTitle">RSS 标题</label>
+          <input id="rssChannelTitle" type="text" placeholder="NOISE导航收录更新">
+          <div class="hint">对应 RSS channel 的 title</div>
+        </div>
+        <div class="field">
+          <label for="rssChannelLink">RSS 链接</label>
+          <input id="rssChannelLink" type="text" placeholder="http://www.noisedh.cn">
+          <div class="hint">对应 RSS channel 的 link</div>
+        </div>
+        <div class="field">
+          <label for="rssChannelDescription">RSS 描述</label>
+          <input id="rssChannelDescription" type="text" placeholder="最新更新通知">
+          <div class="hint">对应 RSS channel 的 description</div>
+        </div>
+        <div class="field">
+          <label for="rssImageUrl">RSS 图片地址</label>
+          <input id="rssImageUrl" type="text" placeholder="https://s2.loli.net/2025/02/26/a6yMIxOUZjHDghp.png">
+          <div class="hint">对应 RSS image 的 url</div>
+        </div>
+        <div class="field">
+          <label for="rssImageTitle">RSS 图片标题</label>
+          <input id="rssImageTitle" type="text" placeholder="NOISE导航">
+          <div class="hint">对应 RSS image 的 title</div>
+        </div>
+        <div class="field">
+          <label for="rssImageLink">RSS 图片跳转</label>
+          <input id="rssImageLink" type="text" placeholder="http://www.noisedh.cn">
+          <div class="hint">对应 RSS image 的 link</div>
+        </div>
+        <div class="field">
+          <label for="telegramMessageTitle">Telegram 开场文案</label>
+          <input id="telegramMessageTitle" type="text" placeholder="📢导航站收录更新通知！">
+          <div class="hint">对应推送首行文案</div>
+        </div>
+        <div class="field">
+          <label for="telegramNavText">Telegram 导航文案</label>
+          <input id="telegramNavText" type="text" placeholder="www.noisedh.cn 或 www.noisedh.link">
+          <div class="hint">对应“前往导航”后面的内容</div>
+        </div>
+      </div>
+      <div class="hint">点击保存后会同时写入扩展配置；如已配置服务器地址与 Token，将自动同步到后端。</div>
+    </div>
+
+    <div class="card">
+      <h2>写入同步</h2>
+      <div class="field">
+        <label>一次收录同步到</label>
+        <div class="inline">
+          <label class="check"><input type="checkbox" id="writeToCloud">云服务器</label>
+          <label class="check"><input type="checkbox" id="writeToGithub">GitHub</label>
+        </div>
+        <div class="hint">可同时勾选，实现一次保存同步写入多平台</div>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="allowCreateCategory" checked>允许新增分类/子分类</label>
+        <div class="hint">分类以数据文件为准；开启后可新增并写入到 YAML</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>GitHub 配置</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="githubUser">用户名</label>
+          <input id="githubUser" type="text" placeholder="your_github_username">
+        </div>
+        <div class="field">
+          <label for="githubRepo">仓库</label>
+          <input id="githubRepo" type="text" placeholder="your_repo_name">
+        </div>
+        <div class="field">
+          <label for="githubBranch">分支</label>
+          <input id="githubBranch" type="text" placeholder="main">
+        </div>
+        <div class="field">
+          <label for="githubPath">目录</label>
+          <input id="githubPath" type="text" placeholder="data">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>AI 智能分析设置</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="aiProvider">AI 服务商</label>
+          <select id="aiProvider">
+            <option value="none">禁用 AI 分析</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="openai">OpenAI</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="doubao">豆包</option>
+            <option value="zhipu">智谱</option>
+            <option value="bytedance">字节</option>
+            <option value="siliconflow">硅基流动</option>
+            <option value="ollama">Ollama</option>
+            <option value="hunyuan">腾讯混元</option>
+            <option value="gitee">Gitee</option>
+            <option value="custom">自定义</option>
+          </select>
+          <div class="hint" id="aiProviderHint">选择 AI 服务商后填写对应参数</div>
+        </div>
+        <div class="field">
+          <label for="aiModelName">模型</label>
+          <input id="aiModelName" type="text" placeholder="支持自定义模型名称">
+          <div class="hint" id="aiModelNameHint">例如：gpt-4o-mini / deepseek-chat / gemini-1.5-flash / qwen2.5:7b</div>
+        </div>
+        <div class="field" id="aiApiKeyField">
+          <label for="aiApiKey">API Key</label>
+          <input id="aiApiKey" type="password" placeholder="输入 API Key">
+        </div>
+        <div class="field">
+          <label for="aiEndpoint">API Endpoint</label>
+          <input id="aiEndpoint" type="text" placeholder="留空使用默认官方地址">
+          <div class="hint">可填写到 /v1 或 /api/v1；Ollama 可填 http://127.0.0.1:11434</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label class="check"><input type="checkbox" id="aiTranslateToZh" checked>AI 摘要自动转中文（英文自动翻译）</label>
+        <div class="hint">开启后，AI 分析的摘要将尽量输出中文；若仍为英文会自动再翻译成中文。</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button id="saveBtn" class="btn" type="button">保存</button>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

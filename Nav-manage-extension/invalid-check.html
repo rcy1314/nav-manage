@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="invalid-check.css">
+  <title>失效检测</title>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">失效检测</div>
+      <div class="actions">
+        <button id="closeBtn" class="btn ghost" type="button">关闭</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <div class="label">当前文件</div>
+        <div id="fileName" class="value">-</div>
+      </div>
+      <div class="row">
+        <div class="label">进度</div>
+        <div id="progressText" class="value">未开始</div>
+      </div>
+      <div class="bar">
+        <div id="barInner" class="bar-inner"></div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <button id="startBtn" class="btn primary" type="button">开始检测</button>
+        <button id="stopBtn" class="btn" type="button" disabled>停止</button>
+      </div>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">本次自动清理</div>
+      <div id="resultList" class="list"></div>
+    </div>
+
+    <div class="hint">
+      归档写入位置：/Library/Github/noisedh/content/invalidlinks.md
+    </div>
+  </div>
+
+  <script src="invalid-check.js"></script>
+</body>
+</html>
