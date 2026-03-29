@@ -141,6 +141,32 @@ function getEffectiveTelegramNavText() {
     return getServerSettingString('telegramNavText', 'www.noisedh.cn 或 www.noisedh.link');
 }
 
+function normalizeDirList(input) {
+    const parts = Array.isArray(input)
+        ? input
+        : String(input || '').split(',');
+    return Array.from(new Set(parts
+        .map((x) => String(x || '').trim())
+        .filter(Boolean)
+        .map((x) => path.resolve(x))));
+}
+
+function getConfiguredSearchDataDirs() {
+    const baseDataDir = path.resolve(baseDir, 'data');
+    const envSearchDirs = normalizeDirList(process.env.SEARCH_DATA_DIRS || '');
+    const envDataDir = normalizeDirList(process.env.DATA_DIR || '');
+    const settingSearchDirs = normalizeDirList(serverSettings && serverSettings.searchDataDirs !== undefined ? serverSettings.searchDataDirs : '');
+    return Array.from(new Set([baseDataDir, ...envSearchDirs, ...envDataDir, ...settingSearchDirs]));
+}
+
+function safeResolveWithinDir(dir, relativePath) {
+    const target = path.resolve(dir, relativePath);
+    if (target === dir || target.startsWith(`${dir}${path.sep}`)) {
+        return target;
+    }
+    return '';
+}
+
 async function sendWebhookNotification(notification) {
     const webhookUrl = getEffectiveWebhookUrl();
 
@@ -561,7 +587,8 @@ app.get('/api/server-settings', verifyToken, (req, res) => {
         rssImageTitle: getEffectiveRssImageTitle(),
         rssImageLink: getEffectiveRssImageLink(),
         telegramMessageTitle: getEffectiveTelegramMessageTitle(),
-        telegramNavText: getEffectiveTelegramNavText()
+        telegramNavText: getEffectiveTelegramNavText(),
+        searchDataDirs: getConfiguredSearchDataDirs()
     });
 });
 
@@ -579,6 +606,9 @@ app.post('/api/server-settings', verifyToken, (req, res) => {
         const rssImageLink = body.rssImageLink !== undefined ? String(body.rssImageLink || '').trim() : getEffectiveRssImageLink();
         const telegramMessageTitle = body.telegramMessageTitle !== undefined ? String(body.telegramMessageTitle || '').trim() : getEffectiveTelegramMessageTitle();
         const telegramNavText = body.telegramNavText !== undefined ? String(body.telegramNavText || '').trim() : getEffectiveTelegramNavText();
+        const searchDataDirs = body.searchDataDirs !== undefined
+            ? normalizeDirList(body.searchDataDirs)
+            : normalizeDirList(serverSettings && serverSettings.searchDataDirs !== undefined ? serverSettings.searchDataDirs : []);
 
         if (webhookUrl && !/^https?:\/\//i.test(webhookUrl)) {
             return res.status(400).json({ error: 'webhookUrl 必须以 http:// 或 https:// 开头' });
@@ -607,7 +637,8 @@ app.post('/api/server-settings', verifyToken, (req, res) => {
             rssImageTitle,
             rssImageLink,
             telegramMessageTitle,
-            telegramNavText
+            telegramNavText,
+            searchDataDirs
         });
 
         res.json({ ok: true });
@@ -1046,9 +1077,43 @@ app.get('/api/search', (req, res) => {
         return res.status(400).send('未提供文件路径');
     }
 
-    const absolutePath = path.resolve(baseDir, 'data', filePath);
+    const rawFilePath = String(filePath).trim();
+    if (!rawFilePath) {
+        return res.status(400).send('文件路径无效');
+    }
 
-    fs.readFile(absolutePath, 'utf8', (err, data) => {
+    const allowedDirs = getConfiguredSearchDataDirs();
+    const candidatePaths = [];
+    if (path.isAbsolute(rawFilePath)) {
+        const normalizedAbs = path.resolve(rawFilePath);
+        const isAllowedAbsolute = allowedDirs.some((dir) => normalizedAbs === dir || normalizedAbs.startsWith(`${dir}${path.sep}`));
+        if (isAllowedAbsolute) {
+            candidatePaths.push(normalizedAbs);
+        }
+        const fileName = path.basename(normalizedAbs);
+        allowedDirs.forEach((dir) => {
+            candidatePaths.push(path.join(dir, fileName));
+        });
+    } else {
+        allowedDirs.forEach((dir) => {
+            const safePath = safeResolveWithinDir(dir, rawFilePath);
+            if (safePath) candidatePaths.push(safePath);
+        });
+    }
+
+    const uniqueCandidates = Array.from(new Set(candidatePaths));
+    const resolvedPath = uniqueCandidates.find((p) => {
+        try {
+            return fs.existsSync(p) && fs.statSync(p).isFile();
+        } catch (_) {
+            return false;
+        }
+    });
+    if (!resolvedPath) {
+        return res.status(404).send('文件未找到');
+    }
+
+    fs.readFile(resolvedPath, 'utf8', (err, data) => {
         if (err) {
             if (err.code === 'ENOENT') return res.status(404).send('文件未找到');
             console.error('读取文件时出错:', err);
@@ -1065,7 +1130,7 @@ app.get('/api/search', (req, res) => {
 
         const results = [];
         const kw = String(keyword || '').toLowerCase();
-        const kind = detectYamlKind(filePath, yamlData);
+        const kind = detectYamlKind(path.basename(resolvedPath), yamlData);
 
         if (kind === 'friendlinks') {
             (yamlData || []).forEach((it) => {

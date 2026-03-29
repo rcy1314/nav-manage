@@ -43,6 +43,8 @@
 
 - `ENABLE_HUGO=true|false`：是否在本机执行 `hugo`（默认 false）
 - `REMOTE_UPDATE_WEBHOOK`：写入后触发的远程更新 Webhook（JSON 形式）
+- `SEARCH_DATA_DIRS`：搜索数据目录列表（逗号分隔绝对路径）
+- `DATA_DIR`：单一搜索数据目录（与 `SEARCH_DATA_DIRS` 同时存在时都会生效）
 
 可选（通知/推送）：
 
@@ -122,7 +124,7 @@ services:
 
 ```bash
 docker run -d \
-  --name noisedh-yaml-server \
+  --name noise233/nav-manage \
   -p 8990:8990 \
   -e PORT=8990 \
   -e BASE_DIR=/app/hugo \
@@ -181,7 +183,7 @@ curl -X POST "http://localhost:8990/api/invalid-links/check" \
 
 ```bash
 cd /Library/Github/noisedh/extension/yaml-server
-IMAGE_TAG=v1.4 IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
+IMAGE_TAG=v1.6 IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
 ```
 
 仅打印命令（不推送）：
@@ -253,6 +255,8 @@ Body（示意）：
 ### 搜索（标题/描述/URL）
 
 - `GET /api/search?keyword=<kw>&filePath=<filename>`
+- `filePath` 支持传文件名（如 `webstack.yml`）或绝对路径（如 `/www/wwwroot/www.noisedh.cn/data/webstack.yml`）
+- 目录来源按优先级合并：`BASE_DIR/data`、`SEARCH_DATA_DIRS`、`DATA_DIR`、`server-settings.searchDataDirs`
 
 ### URL 统计
 
@@ -287,13 +291,15 @@ Body（示意）：
   "rssImageTitle": "NOISE导航",
   "rssImageLink": "http://www.noisedh.cn",
   "telegramMessageTitle": "📢导航站收录更新通知！",
-  "telegramNavText": "www.noisedh.cn 或 www.noisedh.link"
+  "telegramNavText": "www.noisedh.cn 或 www.noisedh.link",
+  "searchDataDirs": ["/app/hugo/data", "/www/wwwroot/www.noisedh.cn/data"]
 }
 ```
 
 补充说明：
 
 - 新增字段会持久化到 `server_settings.json`，并优先于环境变量默认值生效
+- `searchDataDirs` 可用于运行时配置搜索数据目录（支持数组或逗号分隔字符串）
 - RSS 输出结构不变，仅将 `<channel>` 与 `<image>` 内文案改为可配置
 - Telegram 推送结构不变，仅将首行文案与“前往导航”文案改为可配置
 

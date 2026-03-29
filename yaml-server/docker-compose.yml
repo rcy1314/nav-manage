@@ -10,6 +10,7 @@ services:
       - PORT=8990
       - ENABLE_HUGO=false
       - BASE_DIR=/app/hugo
+      - SEARCH_DATA_DIRS=/app/hugo/data,/www/wwwroot/www.noisedh.cn/data
       - API_TOKEN=change_me
       - REMOTE_UPDATE_WEBHOOK=
       - WEBHOOK_URL=
