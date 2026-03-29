@@ -75,11 +75,27 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-const serverSettingsFilePath = path.resolve(__dirname, 'server_settings.json');
+const serverSettingsFilePath = (() => {
+    const configuredPath = String(process.env.SERVER_SETTINGS_PATH || '').trim();
+    return configuredPath ? path.resolve(configuredPath) : path.resolve(baseDir, 'server_settings.json');
+})();
+const legacyServerSettingsFilePath = path.resolve(__dirname, 'server_settings.json');
 let serverSettings = {};
 
 function loadServerSettings() {
     const raw = readJsonFile(serverSettingsFilePath);
+    if (raw && typeof raw === 'object' && Object.keys(raw).length > 0) {
+        serverSettings = raw;
+        return;
+    }
+    if (serverSettingsFilePath !== legacyServerSettingsFilePath) {
+        const legacy = readJsonFile(legacyServerSettingsFilePath);
+        if (legacy && typeof legacy === 'object' && Object.keys(legacy).length > 0) {
+            serverSettings = legacy;
+            writeJsonFile(serverSettingsFilePath, serverSettings);
+            return;
+        }
+    }
     serverSettings = raw && typeof raw === 'object' ? raw : {};
 }
 
@@ -205,6 +221,8 @@ function readJsonFile(filePath) {
 }
 
 function writeJsonFile(filePath, data) {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 

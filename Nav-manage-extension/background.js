@@ -162,7 +162,18 @@ async function getConfig() {
         'githubRepo',
         'githubBranch',
         'githubPath',
-        'githubToken'
+        'githubToken',
+        'webhookUrl',
+        'telegramChatId',
+        'telegramBotToken',
+        'rssChannelTitle',
+        'rssChannelLink',
+        'rssChannelDescription',
+        'rssImageUrl',
+        'rssImageTitle',
+        'rssImageLink',
+        'telegramMessageTitle',
+        'telegramNavText'
       ],
       (items) => resolve(items || {})
     );
@@ -185,6 +196,40 @@ function authHeaders(config) {
     headers['Authorization'] = `Bearer ${token}`;
   }
   return headers;
+}
+
+function buildPushSettingsPayload(config) {
+  const payload = {};
+  if (config.webhookUrl !== undefined) payload.webhookUrl = String(config.webhookUrl || '').trim();
+  if (config.telegramChatId !== undefined) payload.telegramChatId = String(config.telegramChatId || '').trim();
+  if (config.telegramBotToken !== undefined) payload.telegramBotToken = String(config.telegramBotToken || '').trim();
+  if (config.rssChannelTitle !== undefined) payload.rssChannelTitle = String(config.rssChannelTitle || '').trim();
+  if (config.rssChannelLink !== undefined) payload.rssChannelLink = String(config.rssChannelLink || '').trim();
+  if (config.rssChannelDescription !== undefined) payload.rssChannelDescription = String(config.rssChannelDescription || '').trim();
+  if (config.rssImageUrl !== undefined) payload.rssImageUrl = String(config.rssImageUrl || '').trim();
+  if (config.rssImageTitle !== undefined) payload.rssImageTitle = String(config.rssImageTitle || '').trim();
+  if (config.rssImageLink !== undefined) payload.rssImageLink = String(config.rssImageLink || '').trim();
+  if (config.telegramMessageTitle !== undefined) payload.telegramMessageTitle = String(config.telegramMessageTitle || '').trim();
+  if (config.telegramNavText !== undefined) payload.telegramNavText = String(config.telegramNavText || '').trim();
+  return payload;
+}
+
+async function syncPushSettingsToServer(config) {
+  const serverUrl = normalizeServerUrl(config.serverUrl);
+  const token = (config.serverToken || config.token || '').trim();
+  if (!serverUrl || !token) return { skipped: true };
+  const payload = buildPushSettingsPayload(config);
+  if (!Object.keys(payload).length) return { skipped: true };
+  const res = await fetch(`${serverUrl}/api/server-settings`, {
+    method: 'POST',
+    headers: authHeaders(config),
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || '推送参数同步失败');
+  }
+  return { ok: true };
 }
 
 function dumpYamlArray(data) {
@@ -245,6 +290,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         taxonomy: '默认分类'
       };
 
+      let pushSyncWarning = '';
+      try {
+        await syncPushSettingsToServer(config);
+      } catch (e) {
+        pushSyncWarning = e && e.message ? String(e.message) : '推送参数同步失败';
+      }
+
       const res = await fetch(`${serverUrl}/api/yaml`, {
         method: 'POST',
         headers: authHeaders(config),
@@ -264,7 +316,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         type: 'basic',
         iconUrl: 'icon.png',
         title: '收录成功',
-        message: `已成功将 ${tab.title} 收录到 ${filename}`
+        message: pushSyncWarning ? `已收录到 ${filename}，但${pushSyncWarning}` : `已成功将 ${tab.title} 收录到 ${filename}`
       });
 
     } catch (e) {

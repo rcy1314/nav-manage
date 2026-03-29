@@ -147,6 +147,17 @@
           'githubBranch',
           'githubPath',
           'githubToken',
+          'webhookUrl',
+          'telegramChatId',
+          'telegramBotToken',
+          'rssChannelTitle',
+          'rssChannelLink',
+          'rssChannelDescription',
+          'rssImageUrl',
+          'rssImageTitle',
+          'rssImageLink',
+          'telegramMessageTitle',
+          'telegramNavText',
           'aiProvider',
           'aiModelName',
           'aiApiKey',
@@ -169,6 +180,40 @@
     const token = (config.serverToken || config.token || '').trim();
     if (token) headers.Authorization = `Bearer ${token}`;
     return headers;
+  }
+
+  function buildPushSettingsPayload(config) {
+    const payload = {};
+    if (config.webhookUrl !== undefined) payload.webhookUrl = String(config.webhookUrl || '').trim();
+    if (config.telegramChatId !== undefined) payload.telegramChatId = String(config.telegramChatId || '').trim();
+    if (config.telegramBotToken !== undefined) payload.telegramBotToken = String(config.telegramBotToken || '').trim();
+    if (config.rssChannelTitle !== undefined) payload.rssChannelTitle = String(config.rssChannelTitle || '').trim();
+    if (config.rssChannelLink !== undefined) payload.rssChannelLink = String(config.rssChannelLink || '').trim();
+    if (config.rssChannelDescription !== undefined) payload.rssChannelDescription = String(config.rssChannelDescription || '').trim();
+    if (config.rssImageUrl !== undefined) payload.rssImageUrl = String(config.rssImageUrl || '').trim();
+    if (config.rssImageTitle !== undefined) payload.rssImageTitle = String(config.rssImageTitle || '').trim();
+    if (config.rssImageLink !== undefined) payload.rssImageLink = String(config.rssImageLink || '').trim();
+    if (config.telegramMessageTitle !== undefined) payload.telegramMessageTitle = String(config.telegramMessageTitle || '').trim();
+    if (config.telegramNavText !== undefined) payload.telegramNavText = String(config.telegramNavText || '').trim();
+    return payload;
+  }
+
+  async function syncPushSettingsToServer(config) {
+    const serverUrl = normalizeServerUrl(config.serverUrl);
+    const token = String(config.serverToken || config.token || '').trim();
+    if (!serverUrl || !token) return { skipped: true };
+    const payload = buildPushSettingsPayload(config);
+    if (!Object.keys(payload).length) return { skipped: true };
+    const res = await fetch(`${serverUrl}/api/server-settings`, {
+      method: 'POST',
+      headers: authHeaders(config),
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || '推送参数同步失败');
+    }
+    return { ok: true };
   }
 
   function detectKind(filename) {
@@ -1138,9 +1183,15 @@
       let githubOk = false;
       let cloudErr = '';
       let githubErr = '';
+      let pushSyncWarning = '';
 
       if (canCloud) {
         try {
+          try {
+            await syncPushSettingsToServer(config);
+          } catch (e) {
+            pushSyncWarning = e && e.message ? String(e.message) : '推送参数同步失败';
+          }
           const res = await fetch(`${serverUrl}/api/yaml`, {
             method: 'POST',
             headers: authHeaders(config),
@@ -1183,7 +1234,8 @@
           else if (!cloudOk && githubOk) showStatus(`GitHub 已收录，云端同步失败：${cloudErr || '未知错误'}`, 'error');
           else showStatus('收录失败', 'error');
         } else if (cloudOk) {
-          showStatus('收录成功（云端）', 'success');
+          if (pushSyncWarning) showStatus(`收录成功（云端），但${pushSyncWarning}`, 'error');
+          else showStatus('收录成功（云端）', 'success');
         } else if (githubOk) {
           showStatus('收录成功（GitHub）', 'success');
         } else {
