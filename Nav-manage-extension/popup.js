@@ -740,7 +740,7 @@
           const iconEl = document.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
           const iconHref = iconEl ? iconEl.getAttribute('href') : '';
           const urlObj = new URL(location.href);
-          const favicon = iconHref ? new URL(iconHref, urlObj.origin).href : `https://www.google.com/s2/favicons?domain=${urlObj.hostname}`;
+          const favicon = iconHref ? new URL(iconHref, urlObj.origin).href : `https://favicon.yandex.net/favicon/${urlObj.hostname}`;
           const text = (document.body && document.body.innerText) ? document.body.innerText.slice(0, 4000) : '';
           return { title, metaDesc, favicon, text };
         }
