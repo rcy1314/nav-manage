@@ -12,10 +12,16 @@ services:
       - BASE_DIR=/app/hugo
       - SEARCH_DATA_DIRS=/app/hugo/data,/www/wwwroot/www.noisedh.cn/data
       - API_TOKEN=change_me
+      - MCP_TOKEN=change_me_mcp
+      - MCP_REQUIRE_TOKEN=true
+      - MCP_RATE_LIMIT_MAX=120
+      - MCP_RATE_LIMIT_WINDOW_MS=60000
       - REMOTE_UPDATE_WEBHOOK=
       - WEBHOOK_URL=
       - TELEGRAM_CHAT_ID=
       - TELEGRAM_BOT_TOKEN=
+      - MCP_HTTP=true
+      - MCP_REQUIRE_TOKEN=false
     volumes:
       - /path/to/your/hugo-or-data-root:/app/hugo
       - ./notifications.json:/app/server/notifications.json

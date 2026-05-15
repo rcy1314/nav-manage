@@ -17,6 +17,8 @@ Nav-Manage 由两部分组成：
 
 演示站点：[NOISE导航](https://www.noisedh.link)
 
+扩展在线安装：[点击访问](https://microsoftedge.microsoft.com/addons/detail/nav-manage/pogpiicgclbpchehmdgdeianhgpnjanl)
+
 ## 快速开始（仅部署后端）
 
 说明：本节是“仅后端 API”部署，不包含 Hugo 主题网站的静态服务。  
@@ -49,7 +51,97 @@ docker run -d \
 - `ENABLE_HUGO=true`：收录/删除后在容器内执行 `hugo`（需要挂载完整 Hugo 源码目录）
 - `ENABLE_HUGO=false`：不在容器内编译 Hugo，建议配合 `REMOTE_UPDATE_WEBHOOK` 触发远程更新
 
-完整参数说明与 API 列表见：[DEPLOYMENT.md](file:///Library/Github/noisedh/extension/yaml-server/DEPLOYMENT.md)
+如果你还希望同时启用 MCP（供 AI 客户端接入，自然语言站内搜索/可点击翻页），可以这样启动：
+
+```bash
+docker run -d \
+  --name nav-manage \
+  -p 8990:8990 \
+  -e PORT=8990 \
+  -e BASE_DIR=/app/hugo \
+  -e API_TOKEN=change_me_to_a_strong_token \
+  -e MCP_TOKEN=change_me_to_a_mcp_token \
+  -e MCP_REQUIRE_TOKEN=true \
+  -e MCP_RATE_LIMIT_MAX=120 \
+  -e MCP_RATE_LIMIT_WINDOW_MS=60000 \
+  -e ENABLE_HUGO=false \
+  -e MCP_HTTP=true \
+  -v /path/to/your/hugo-site:/app/hugo \
+  --restart=always \
+  noise233/nav-manage:latest
+```
+
+AI 客户端接入（URL 方式，最少配置）：
+
+```json
+{
+  "mcpServers": {
+    "NOISE导航": {
+      "url": "https://<你的域名或IP>:8990/mcp",
+      "headers": {
+        "Authorization": "Bearer <Token>"
+      }
+    }
+  }
+}
+```
+
+鉴权说明（/mcp）：
+
+- 默认需要鉴权：`Authorization: Bearer <Token>`
+- `Token` 的取值优先级：`MCP_TOKEN`（若设置）→ 否则复用 `API_TOKEN`
+- 若希望公开给所有人使用：设置 `MCP_REQUIRE_TOKEN=false`（不再需要 Authorization）
+
+传输说明（/mcp）：
+
+- HTTP 端点统一为 `/mcp`
+- 支持标准 MCP HTTP 的 `GET` / `POST` / `DELETE`
+- 服务端会根据客户端请求头返回单次 JSON 响应或 `text/event-stream`
+- 初始化后，服务端可能返回 `Mcp-Session-Id`，客户端后续请求应继续携带
+
+访问频率限制（/mcp，按 IP 计数）：
+
+- `MCP_RATE_LIMIT_MAX`：窗口内最大请求数（默认 120）
+- `MCP_RATE_LIMIT_WINDOW_MS`：窗口毫秒数（默认 60000）
+- `MCP_RATE_LIMIT_DISABLED=true`：关闭限制
+
+公开模式示例（不需要 Token，但保留访问频率限制）：
+
+```bash
+docker run -d \
+  --name nav-manage \
+  -p 8990:8990 \
+  -e PORT=8990 \
+  -e BASE_DIR=/app/hugo \
+  -e ENABLE_HUGO=false \
+  -e MCP_HTTP=true \
+  -e MCP_REQUIRE_TOKEN=false \
+  -e MCP_RATE_LIMIT_MAX=120 \
+  -e MCP_RATE_LIMIT_WINDOW_MS=60000 \
+  -v /path/to/your/hugo-site:/app/hugo \
+  --restart=always \
+  noise233/nav-manage:latest
+```
+
+使用示例（自然语言 / 格式化）：
+
+- 自然语言： “在 NOISE导航 里搜一下 AI 工具，翻到第 2 页”
+- 自然语言： “帮我找可以 AI 生成图片的网站”
+- 自然语言： “在 NOISE导航 里搜一下 AI 绘图工具”
+- 自然语言： “找一些支持文生图的站点”
+- 自然语言： “搜索能生成图片的 AI 网站，优先国外热门产品”
+- 自然语言： “帮我找 AI 图片生成工具，第 2 页”
+- 自然语言： “在 NOISE导航 里搜一下：云盘资源库（可以命中描述）”
+- 格式化： “搜索：关键词=AI，页码=2，每页=20”
+- 带筛选： “搜索：关键词=AI，一级分类=设计，二级分类=图标”
+- 结构化： “搜索：关键词=AI，格式=json”（需要完整字段时用）
+
+字段映射（数据文件真实字段；其中 taxonomy/term 可作为筛选参数）：
+
+- `一级分类` → `taxonomy`
+- `二级分类` → `term`
+- `地址` → `url`
+- `描述` → `description`
 
 ## 前后端分离部署（推荐）
 

@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const cors = require('cors');
+const crypto = require('crypto');
 const { exec } = require('child_process');
 const axios = require('axios'); // 用于发送 HTTP 请求
 
@@ -15,9 +16,12 @@ const ENABLE_HUGO = process.env.ENABLE_HUGO !== 'false';
 const REMOTE_UPDATE_WEBHOOK = process.env.REMOTE_UPDATE_WEBHOOK || '';
 
 // API Token 鉴权中间件配置
-const API_TOKEN = process.env.API_TOKEN || 'your_default_secret_token';
+const API_TOKEN = String(process.env.API_TOKEN || '').trim();
 
 function verifyToken(req, res, next) {
+    if (!API_TOKEN) {
+        return res.status(503).json({ error: '服务端未配置 API_TOKEN' });
+    }
     const token = req.headers.authorization || req.headers['x-auth-token'];
     if (!token) {
         return res.status(401).json({ error: '未提供认证 Token' });
@@ -36,7 +40,20 @@ const baseDir = process.env.BASE_DIR || path.resolve(__dirname, '../../');
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS', 'PUT'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'x-auth-token',
+        'Accept',
+        'Mcp-Session-Id',
+        'MCP-Protocol-Version',
+        'Last-Event-ID'
+    ],
+    exposedHeaders: [
+        'Mcp-Session-Id',
+        'MCP-Protocol-Version',
+        'Content-Type'
+    ]
 }));
 
 app.use(express.json());
@@ -447,6 +464,10 @@ setInterval(() => {
     deleteOldBookmarks(BOOKMARKS_OUTPUT_DIR).catch(err => console.error('Error deleting old bookmarks:', err));
 }, 180000); // 180000 毫秒 = 3 分钟
 
+app.get('/api/health', (req, res) => {
+    res.json({ ok: true, service: 'yaml-server' });
+});
+
 // 导出为书签格式的路由
 app.get('/api/export-bookmarks', async (req, res) => {
     console.log('Received request for export-bookmarks:', req.query);
@@ -560,7 +581,7 @@ app.get('/data', (req, res) => {
     });
 });
 
-// GET 路由，用于获取特定的 YAML 文件内容
+// GET 路由，用于获取特定的数据内容
 app.get('/data/:filename', (req, res) => {
     const filename = req.params.filename;
     const dataDir = path.resolve(baseDir, 'data');
@@ -728,7 +749,7 @@ function generateRSS(notifications) {
 </rss>`;
 }
 
-// POST 路由，用于添加数据到指定的 YAML 文件
+// POST 路由，用于添加数据到指定的数据源
 app.post('/api/yaml', verifyToken, async (req, res) => {
     const { filename, newDataEntry } = req.body;
     const kind = (req.body && req.body.kind) || (newDataEntry && newDataEntry.kind) || 'webstack';
@@ -749,7 +770,7 @@ app.post('/api/yaml', verifyToken, async (req, res) => {
                 yamlData = []; // 文件不存在时初始化为空数组
             } else {
                 console.error('读取文件时出错:', err);
-                return res.status(500).send('读取 YAML 文件失败');
+                return res.status(500).send('读取数据失败');
             }
         } else {
             if (data.trim() === '') {
@@ -758,14 +779,14 @@ app.post('/api/yaml', verifyToken, async (req, res) => {
                 try {
                     yamlData = yaml.load(data) || [];
                 } catch (parseError) {
-                    console.error('解析 YAML 文件失败:', parseError);
-                    return res.status(500).send('解析 YAML 文件失败');
+                    console.error('解析数据失败:', parseError);
+                    return res.status(500).send('解析数据失败');
                 }
             }
         }
 
         if (!Array.isArray(yamlData)) {
-            return res.status(400).send('YAML 顶层结构必须为数组');
+            return res.status(400).send('数据顶层结构必须为数组');
         }
 
         const resolvedKind = detectYamlKind(filename, yamlData);
@@ -788,7 +809,7 @@ app.post('/api/yaml', verifyToken, async (req, res) => {
             fs.writeFile(absolutePath, yamlString, async (err) => {
                 if (err) {
                     console.error('写入文件时出错:', err);
-                    return res.status(500).send('写入 YAML 文件失败');
+                    return res.status(500).send('写入数据失败');
                 }
 
                 if (ENABLE_HUGO) {
@@ -856,7 +877,7 @@ app.post('/api/yaml', verifyToken, async (req, res) => {
             fs.writeFile(absolutePath, yamlString, async (err) => {
                 if (err) {
                     console.error('写入文件时出错:', err);
-                    return res.status(500).send('写入 YAML 文件失败');
+                    return res.status(500).send('写入数据失败');
                 }
 
                 if (ENABLE_HUGO) {
@@ -945,14 +966,14 @@ app.post('/api/yaml', verifyToken, async (req, res) => {
             yamlData.push(newTaxonomyEntry);
         }
 
-        // 生成 YAML 字符串
+        // 生成数据字符串
         const yamlString = '---\n' + yaml.dump(yamlData, { noRefs: true, lineWidth: -1 });
 
-        // 写入 YAML 文件的部分
+        // 写入数据的部分
         fs.writeFile(absolutePath, yamlString, async (err) => {
             if (err) {
                 console.error('写入文件时出错:', err);
-                return res.status(500).send('写入 YAML 文件失败');
+                return res.status(500).send('写入数据失败');
             }
 
             // 添加更新通知
@@ -1142,8 +1163,8 @@ app.get('/api/search', (req, res) => {
         try {
             yamlData = yaml.load(data) || [];
         } catch (parseError) {
-            console.error('解析 YAML 文件失败:', parseError);
-            return res.status(500).send('解析 YAML 文件失败');
+            console.error('解析数据失败:', parseError);
+            return res.status(500).send('解析数据失败');
         }
 
         const results = [];
@@ -1232,6 +1253,1062 @@ app.get('/api/search', (req, res) => {
         return res.json(results);
     });
 });
+
+function parseBooleanEnv(name) {
+    const v = String(process.env[name] || '').trim().toLowerCase();
+    if (!v) return false;
+    return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+}
+
+function isMcpStdioMode() {
+    if (process.argv.includes('--mcp') || process.argv.includes('--mcp-stdio')) return true;
+    const mode = String(process.env.MCP_MODE || '').trim().toLowerCase();
+    if (mode === 'stdio') return true;
+    if (mode === 'http') return false;
+    return parseBooleanEnv('MCP_ENABLED');
+}
+
+function isMcpHttpMode() {
+    if (process.argv.includes('--mcp-http')) return true;
+    const mode = String(process.env.MCP_MODE || '').trim().toLowerCase();
+    if (mode === 'http') return true;
+    return parseBooleanEnv('MCP_HTTP');
+}
+
+function shouldStartHttpServer() {
+    if (process.argv.includes('--no-http')) return false;
+    if (parseBooleanEnv('HTTP_DISABLED')) return false;
+    if (isMcpHttpMode()) return true;
+    if (isMcpStdioMode() && !parseBooleanEnv('MCP_WITH_HTTP')) return false;
+    return true;
+}
+
+function parseBooleanEnvDefaultTrue(name) {
+    const raw = String(process.env[name] || '').trim().toLowerCase();
+    if (!raw) return true;
+    return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+function getClientIp(req) {
+    const xfwd = req && req.headers ? String(req.headers['x-forwarded-for'] || '') : '';
+    if (xfwd) {
+        const first = xfwd.split(',')[0].trim();
+        if (first) return first;
+    }
+    const xRealIp = req && req.headers ? String(req.headers['x-real-ip'] || '') : '';
+    if (xRealIp) return xRealIp.trim();
+    const addr = req && req.socket ? String(req.socket.remoteAddress || '') : '';
+    if (!addr) return 'unknown';
+    return addr.startsWith('::ffff:') ? addr.slice('::ffff:'.length) : addr;
+}
+
+function getBearerTokenFromRequest(req) {
+    const token = req && req.headers ? (req.headers.authorization || req.headers['x-auth-token']) : '';
+    if (!token) return '';
+    const actualToken = String(token).startsWith('Bearer ') ? String(token).slice(7) : String(token);
+    return String(actualToken || '').trim();
+}
+
+const mcpRateState = new Map();
+
+function mcpRateLimit(req, res, next) {
+    if (parseBooleanEnv('MCP_RATE_LIMIT_DISABLED')) return next();
+    const windowMs = Math.max(1000, Number(process.env.MCP_RATE_LIMIT_WINDOW_MS || 60000));
+    const max = Math.max(1, Number(process.env.MCP_RATE_LIMIT_MAX || 120));
+    const now = Date.now();
+
+    const ip = getClientIp(req);
+    const key = ip || 'unknown';
+    const current = mcpRateState.get(key);
+
+    if (!current || now >= current.resetAtMs) {
+        mcpRateState.set(key, { count: 1, resetAtMs: now + windowMs });
+        return next();
+    }
+
+    current.count += 1;
+    if (current.count <= max) return next();
+
+    const retryAfterMs = Math.max(0, current.resetAtMs - now);
+    const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
+    res.setHeader('Retry-After', String(retryAfterSeconds));
+    res.setHeader('X-RateLimit-Limit', String(max));
+    res.setHeader('X-RateLimit-Remaining', '0');
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(current.resetAtMs / 1000)));
+    return res.status(429).json({ error: '请求过多，请稍后再试', retryAfterSeconds });
+}
+
+function verifyMcpToken(req, res, next) {
+    const expected = String(process.env.MCP_TOKEN || process.env.API_TOKEN || '').trim();
+    const actual = getBearerTokenFromRequest(req);
+    if (!expected) {
+        return res.status(500).json({ error: 'MCP Token 未配置' });
+    }
+    if (!actual) {
+        return res.status(401).json({ error: '未提供认证 Token' });
+    }
+    if (actual !== expected) {
+        return res.status(403).json({ error: '无效的 Token' });
+    }
+    return next();
+}
+
+function maybeVerifyMcpToken(req, res, next) {
+    if (!isMcpHttpMode() && !isMcpStdioMode()) {
+        return res.status(404).json({ error: 'MCP 未启用' });
+    }
+    if (!parseBooleanEnvDefaultTrue('MCP_REQUIRE_TOKEN')) return next();
+    return verifyMcpToken(req, res, next);
+}
+
+const mcpIndex = {
+    lastScanAtMs: 0,
+    scanIntervalMs: Number(process.env.MCP_SCAN_INTERVAL_MS || 5000),
+    files: [],
+    cacheByFile: new Map()
+};
+const mcpSessions = new Map();
+const mcpAnonymousStreams = new Set();
+const MCP_SUPPORTED_PROTOCOL_VERSION_LIST = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25'];
+const MCP_SUPPORTED_PROTOCOL_VERSIONS = new Set(MCP_SUPPORTED_PROTOCOL_VERSION_LIST);
+
+function getLatestMcpProtocolVersion() {
+    return MCP_SUPPORTED_PROTOCOL_VERSION_LIST[MCP_SUPPORTED_PROTOCOL_VERSION_LIST.length - 1];
+}
+
+function isDateLikeMcpProtocolVersion(version) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(version || '').trim());
+}
+
+function getRequestedMcpProtocolVersion(req, msg) {
+    const fromHeader = req && req.headers ? String(req.headers['mcp-protocol-version'] || '').trim() : '';
+    if (fromHeader) return fromHeader;
+    if (msg && msg.params && typeof msg.params.protocolVersion === 'string' && msg.params.protocolVersion.trim()) {
+        return msg.params.protocolVersion.trim();
+    }
+    return '';
+}
+
+function negotiateMcpProtocolVersion(req, msg) {
+    const requested = getRequestedMcpProtocolVersion(req, msg);
+    if (!requested) return getLatestMcpProtocolVersion();
+    if (MCP_SUPPORTED_PROTOCOL_VERSIONS.has(requested)) return requested;
+    // Be lenient with newer date-based revisions so clients like Cherry Studio
+    // can continue using this server even before we explicitly whitelist them.
+    if (isDateLikeMcpProtocolVersion(requested)) return getLatestMcpProtocolVersion();
+    return null;
+}
+
+function createMcpSession() {
+    const id = typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : crypto.randomBytes(16).toString('hex');
+    const session = { id, createdAtMs: Date.now(), updatedAtMs: Date.now(), protocolVersion: getLatestMcpProtocolVersion(), streams: new Set() };
+    mcpSessions.set(id, session);
+    return session;
+}
+
+function getMcpSessionIdFromRequest(req) {
+    return req && req.headers ? String(req.headers['mcp-session-id'] || '').trim() : '';
+}
+
+function getMcpSessionFromRequest(req) {
+    const id = getMcpSessionIdFromRequest(req);
+    if (!id) return null;
+    return mcpSessions.get(id) || null;
+}
+
+function requestPrefersSseResponse(req) {
+    const accept = String((req && req.headers && req.headers.accept) || '').toLowerCase();
+    if (!accept.includes('text/event-stream')) return false;
+    if (accept.includes('application/json')) return false;
+    return true;
+}
+
+function touchMcpSession(session, protocolVersion) {
+    if (!session) return;
+    session.updatedAtMs = Date.now();
+    if (protocolVersion) session.protocolVersion = protocolVersion;
+}
+
+function removeMcpSseConnection(conn) {
+    if (!conn) return;
+    if (conn.heartbeat) clearInterval(conn.heartbeat);
+    if (conn.session && conn.session.streams) conn.session.streams.delete(conn);
+    mcpAnonymousStreams.delete(conn);
+}
+
+function writeSseEvent(res, msg, options) {
+    const eventName = options && options.event ? String(options.event) : 'message';
+    const eventId = options && options.id ? String(options.id) : '';
+    if (eventName) res.write(`event: ${eventName}\n`);
+    if (eventId) res.write(`id: ${eventId}\n`);
+    res.write(`data: ${JSON.stringify(msg)}\n\n`);
+}
+
+function openMcpSseStream(req, res, session) {
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (session) {
+        res.setHeader('Mcp-Session-Id', session.id);
+        res.setHeader('MCP-Protocol-Version', session.protocolVersion || getLatestMcpProtocolVersion());
+    }
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    res.write(':\n\n');
+
+    const conn = {
+        req,
+        res,
+        session,
+        heartbeat: setInterval(() => {
+            try {
+                res.write('event: ping\ndata: {}\n\n');
+            } catch (_) {
+                removeMcpSseConnection(conn);
+            }
+        }, 30000)
+    };
+
+    if (session) {
+        session.streams.add(conn);
+    } else {
+        mcpAnonymousStreams.add(conn);
+    }
+
+    req.on('close', () => removeMcpSseConnection(conn));
+    return conn;
+}
+
+function listYamlFilesRecursive(rootDir) {
+    const out = [];
+    const maxDepth = Number(process.env.MCP_SCAN_MAX_DEPTH || 6);
+    const maxFiles = Number(process.env.MCP_SCAN_MAX_FILES || 5000);
+    const stack = [{ dir: rootDir, depth: 0 }];
+    while (stack.length > 0) {
+        const { dir, depth } = stack.pop();
+        if (depth > maxDepth) continue;
+        let entries = [];
+        try {
+            entries = fs.readdirSync(dir, { withFileTypes: true });
+        } catch (_) {
+            continue;
+        }
+        for (const ent of entries) {
+            if (!ent) continue;
+            const name = ent.name || '';
+            if (!name) continue;
+            const full = path.join(dir, name);
+            if (ent.isDirectory()) {
+                stack.push({ dir: full, depth: depth + 1 });
+                continue;
+            }
+            if (!ent.isFile()) continue;
+            const lower = name.toLowerCase();
+            if (lower.endsWith('.yml') || lower.endsWith('.yaml')) {
+                out.push(full);
+                if (out.length >= maxFiles) return out;
+            }
+        }
+    }
+    return out;
+}
+
+function refreshMcpFileList(force) {
+    const now = Date.now();
+    if (!force && now - mcpIndex.lastScanAtMs < mcpIndex.scanIntervalMs) return;
+    mcpIndex.lastScanAtMs = now;
+    const dirs = getConfiguredSearchDataDirs();
+    const files = [];
+    dirs.forEach((dir) => {
+        const resolved = path.resolve(dir);
+        files.push(...listYamlFilesRecursive(resolved));
+    });
+    const unique = Array.from(new Set(files.map((x) => path.resolve(x))));
+    mcpIndex.files = unique;
+    const set = new Set(unique);
+    for (const key of mcpIndex.cacheByFile.keys()) {
+        if (!set.has(key)) mcpIndex.cacheByFile.delete(key);
+    }
+}
+
+function extractSiteItemsFromYamlFile(filePath) {
+    let stat;
+    try {
+        stat = fs.statSync(filePath);
+        if (!stat.isFile()) return { mtimeMs: 0, items: [], kind: 'unknown' };
+    } catch (_) {
+        return { mtimeMs: 0, items: [], kind: 'unknown' };
+    }
+
+    const cached = mcpIndex.cacheByFile.get(filePath);
+    if (cached && cached.mtimeMs === stat.mtimeMs) return cached;
+
+    let raw = '';
+    try {
+        raw = fs.readFileSync(filePath, 'utf8');
+    } catch (_) {
+        const empty = { mtimeMs: stat.mtimeMs, items: [], kind: 'unknown' };
+        mcpIndex.cacheByFile.set(filePath, empty);
+        return empty;
+    }
+
+    let yamlData;
+    try {
+        yamlData = yaml.load(raw) || [];
+    } catch (_) {
+        const empty = { mtimeMs: stat.mtimeMs, items: [], kind: 'unknown' };
+        mcpIndex.cacheByFile.set(filePath, empty);
+        return empty;
+    }
+
+    const kind = detectYamlKind(path.basename(filePath), yamlData);
+    const items = [];
+
+    if (kind === 'friendlinks') {
+        (Array.isArray(yamlData) ? yamlData : []).forEach((it) => {
+            if (!it || !it.url) return;
+            items.push({
+                title: it.title || '',
+                url: it.url || '',
+                description: it.description || '',
+                taxonomy: '',
+                term: '',
+                kind,
+                source: filePath
+            });
+        });
+    } else if (kind === 'headers') {
+        (Array.isArray(yamlData) ? yamlData : []).forEach((it) => {
+            if (!it) return;
+            const item = it.item ? String(it.item) : '';
+            const link = it.link ? String(it.link) : '';
+            if (link) {
+                items.push({
+                    title: item,
+                    url: link,
+                    description: it.icon ? String(it.icon) : '',
+                    taxonomy: 'headers',
+                    term: '',
+                    kind,
+                    source: filePath
+                });
+            }
+            const list = Array.isArray(it.list) ? it.list : [];
+            list.forEach((s) => {
+                if (!s || !s.url) return;
+                items.push({
+                    title: s.name ? String(s.name) : '',
+                    url: String(s.url),
+                    description: item,
+                    taxonomy: 'headers',
+                    term: item,
+                    kind,
+                    source: filePath
+                });
+            });
+        });
+    } else {
+        const list = collectWebstackLinks(yamlData);
+        list.forEach((l) => {
+            if (!l || !l.url) return;
+            items.push({
+                title: l.title || '',
+                url: l.url || '',
+                description: l.description || '',
+                taxonomy: l.taxonomy || '',
+                term: l.term || '',
+                kind: 'webstack',
+                source: filePath
+            });
+        });
+    }
+
+    const next = { mtimeMs: stat.mtimeMs, items, kind };
+    mcpIndex.cacheByFile.set(filePath, next);
+    return next;
+}
+
+function normalizeSearchTokens(q) {
+    const raw = String(q || '').trim().toLowerCase();
+    if (!raw) return [];
+    const parts = raw.split(/[\s,，。.;；、/|]+/).map((x) => x.trim()).filter(Boolean);
+    if (parts.length === 0) return [raw];
+    if (parts.length === 1) return parts;
+    return parts.filter((p) => p.length > 0);
+}
+
+function scoreSiteMatch(site, tokens, fullQuery) {
+    const title = site && site.title ? String(site.title) : '';
+    const url = site && site.url ? String(site.url) : '';
+    const description = site && site.description ? String(site.description) : '';
+    const taxonomy = site && site.taxonomy ? String(site.taxonomy) : '';
+    const term = site && site.term ? String(site.term) : '';
+    const hay = `${title} ${url} ${description} ${taxonomy} ${term}`.toLowerCase();
+    let score = 0;
+    if (fullQuery && hay.includes(fullQuery)) score += 10;
+    tokens.forEach((t) => {
+        if (!t) return;
+        if (hay.includes(t)) score += 2;
+    });
+    if (title && tokens.some((t) => title.toLowerCase().includes(t))) score += 2;
+    if (description && tokens.some((t) => description.toLowerCase().includes(t))) score += 1;
+    if (url && tokens.some((t) => url.toLowerCase().includes(t))) score += 1;
+    return score;
+}
+
+function normalizePagination({ page, pageSize, limit }) {
+    const p = Number(page);
+    const ps = Number(pageSize);
+    const l = Number(limit);
+    if (Number.isFinite(ps) && ps > 0) {
+        const pageNum = Number.isFinite(p) && p > 0 ? Math.floor(p) : 1;
+        return { page: pageNum, pageSize: Math.max(1, Math.min(Math.floor(ps), 100)) };
+    }
+    if (Number.isFinite(l) && l > 0) {
+        return { page: 1, pageSize: Math.max(1, Math.min(Math.floor(l), 100)) };
+    }
+    const pageNum = Number.isFinite(p) && p > 0 ? Math.floor(p) : 1;
+    return { page: pageNum, pageSize: 20 };
+}
+
+function buildSearchResourceUri(args) {
+    const q = args && args.query !== undefined ? String(args.query) : '';
+    const page = args && args.page !== undefined ? String(args.page) : '';
+    const pageSize = args && args.pageSize !== undefined ? String(args.pageSize) : '';
+    const kind = args && args.kind !== undefined ? String(args.kind) : '';
+    const taxonomy = args && args.taxonomy !== undefined ? String(args.taxonomy) : '';
+    const term = args && args.term !== undefined ? String(args.term) : '';
+
+    const params = [];
+    if (q) params.push(`query=${encodeURIComponent(q)}`);
+    if (page) params.push(`page=${encodeURIComponent(page)}`);
+    if (pageSize) params.push(`pageSize=${encodeURIComponent(pageSize)}`);
+    if (kind) params.push(`kind=${encodeURIComponent(kind)}`);
+    if (taxonomy) params.push(`taxonomy=${encodeURIComponent(taxonomy)}`);
+    if (term) params.push(`term=${encodeURIComponent(term)}`);
+    const qs = params.length > 0 ? `?${params.join('&')}` : '';
+    return `resource://noisedh/search${qs}`;
+}
+
+function sortFacetEntries(map, limit) {
+    const list = Array.from(map.entries()).map(([value, count]) => ({ value, count }));
+    list.sort((a, b) => b.count - a.count);
+    return list.slice(0, Math.max(1, Math.min(Number(limit || 10) || 10, 50)));
+}
+
+function renderSearchMarkdown(out) {
+    const results = Array.isArray(out && out.results) ? out.results : [];
+    const total = Number(out && out.total) || 0;
+    const page = Number(out && out.page) || 1;
+    const pages = Number(out && out.pages) || 1;
+    const pageSize = Number(out && out.pageSize) || 20;
+    const hints = Array.isArray(out && out.hints) ? out.hints : [];
+
+    const nav = out && out.navigation ? out.navigation : {};
+    const prev = nav && nav.prev && nav.prev.resource ? String(nav.prev.resource) : '';
+    const next = nav && nav.next && nav.next.resource ? String(nav.next.resource) : '';
+    const first = nav && nav.first && nav.first.resource ? String(nav.first.resource) : '';
+    const last = nav && nav.last && nav.last.resource ? String(nav.last.resource) : '';
+    const shownStart = total > 0 ? ((page - 1) * pageSize) + 1 : 0;
+    const shownEnd = total > 0 ? Math.min(total, shownStart + Math.max(results.length - 1, 0)) : 0;
+    const remaining = total > 0 ? Math.max(0, total - shownEnd) : 0;
+
+    const pageLinks = [];
+    const windowSize = 7;
+    const half = Math.floor(windowSize / 2);
+    const startPage = Math.max(1, Math.min(page - half, Math.max(1, pages - windowSize + 1)));
+    const endPage = Math.min(pages, startPage + windowSize - 1);
+    for (let p = startPage; p <= endPage; p++) {
+        const uri = buildSearchResourceUri({ ...(out && out.request ? out.request : {}), page: p });
+        pageLinks.push(p === page ? `**${p}**` : `[${p}](${uri})`);
+    }
+
+    let md = `共 ${total} 条，当前第 ${page}/${pages} 页（每页 ${pageSize} 条）\n\n`;
+
+    const navParts = [];
+    if (first) navParts.push(`[首页](${first})`);
+    if (prev) navParts.push(`[上一页](${prev})`);
+    if (next) navParts.push(`[下一页](${next})`);
+    if (last) navParts.push(`[末页](${last})`);
+    if (navParts.length > 0) md += `${navParts.join('  ')}\n\n`;
+    if (pages > 1) md += `${pageLinks.join('  ')}\n\n`;
+
+    if (total > 0) {
+        md += `本页显示第 ${shownStart}-${shownEnd} 条结果。`;
+        if (remaining > 0 && next) {
+            md += ` 还有 ${remaining} 条未显示，可继续点击[下一页](${next})查看`;
+            if (last) md += `，也可直接点击[末页](${last})。`;
+            else md += `。`;
+        } else {
+            md += ` 已显示全部结果。`;
+        }
+        md += `\n\n`;
+    }
+
+    const suggestedFacets = out && out.suggestedFacets ? out.suggestedFacets : null;
+    const facets = out && out.facets ? out.facets : null;
+    const followups = Array.isArray(out && out.followups) ? out.followups : [];
+    const questions = [];
+    if (out && out.query === '') {
+        questions.push('你想找什么关键词（站点名/描述/域名）？');
+        questions.push('你更偏向哪个一级分类或二级分类？');
+    } else if (total === 0) {
+        questions.push('要不要换一个更短的关键词或只输入域名的一部分？');
+        questions.push('要不要先点一个一级分类/二级分类缩小范围？');
+    } else if (total > Math.max(200, pageSize * 10)) {
+        questions.push(`当前只显示了第 ${shownStart}-${shownEnd} 条，还剩 ${remaining} 条未显示，要不要继续翻页？`);
+        questions.push('结果很多，要不要先点一个一级分类/二级分类缩小范围？');
+        questions.push('是否需要把每页数量调大一点方便翻？');
+    } else {
+        if (remaining > 0) questions.push(`当前还剩 ${remaining} 条结果未显示，要继续翻页吗？`);
+        questions.push('要继续翻页，还是按一级分类/二级分类缩小范围？');
+    }
+
+    if (questions.length > 0) {
+        md += `${questions.slice(0, 3).map((q) => `- ${q}`).join('\n')}\n\n`;
+    }
+
+    const quick = [];
+    const sourceFacets = (total === 0 && suggestedFacets) ? suggestedFacets : facets;
+    if (sourceFacets && Array.isArray(sourceFacets.taxonomies)) {
+        sourceFacets.taxonomies.slice(0, 5).forEach((t) => {
+            const args = { ...(out && out.request ? out.request : {}), page: 1, taxonomy: t.value };
+            quick.push({ label: `只看 一级分类：${t.value}（${t.count}）`, resource: buildSearchResourceUri(args) });
+        });
+    }
+    if (sourceFacets && Array.isArray(sourceFacets.terms)) {
+        sourceFacets.terms.slice(0, 5).forEach((t) => {
+            const args = { ...(out && out.request ? out.request : {}), page: 1, term: t.value };
+            quick.push({ label: `只看 二级分类：${t.value}（${t.count}）`, resource: buildSearchResourceUri(args) });
+        });
+    }
+    if (sourceFacets && Array.isArray(sourceFacets.kinds)) {
+        sourceFacets.kinds.slice(0, 3).forEach((k) => {
+            const args = { ...(out && out.request ? out.request : {}), page: 1, kind: k.value };
+            quick.push({ label: `只看 ${k.value}（${k.count}）`, resource: buildSearchResourceUri(args) });
+        });
+    }
+    [10, 20, 50].forEach((ps) => {
+        if (ps === pageSize) return;
+        const args = { ...(out && out.request ? out.request : {}), page: 1, pageSize: ps };
+        quick.push({ label: `每页 ${ps} 条`, resource: buildSearchResourceUri(args) });
+    });
+
+    const mergedQuick = [];
+    const seen = new Set();
+    [...followups, ...quick].forEach((x) => {
+        const key = x && x.resource ? String(x.resource) : '';
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        mergedQuick.push(x);
+    });
+    if (mergedQuick.length > 0) {
+        md += `快速操作：\n`;
+        mergedQuick.slice(0, 10).forEach((f) => {
+            const label = f && f.label ? String(f.label) : '';
+            const resource = f && f.resource ? String(f.resource) : '';
+            if (label && resource) md += `- [${label}](${resource})\n`;
+        });
+        md += `\n`;
+    }
+
+    if (results.length === 0) {
+        md += `未找到匹配结果。\n\n`;
+    } else {
+        results.forEach((r, idx) => {
+            const title = r && r.title ? String(r.title) : (r && r.url ? String(r.url) : '未命名');
+            const url = r && r.url ? String(r.url) : '';
+            const description = r && r.description ? String(r.description) : '';
+            const taxonomy = r && r.taxonomy ? String(r.taxonomy) : '';
+            const term = r && r.term ? String(r.term) : '';
+            const meta = [];
+            if (taxonomy) meta.push(`一级分类:${taxonomy}`);
+            if (term) meta.push(`二级分类:${term}`);
+            const metaText = meta.length > 0 ? `  ${meta.map((x) => `【${x}】`).join('')}` : '';
+            md += `${idx + 1}. ${url ? `[${title}](${url})` : title}${metaText}\n`;
+            if (description) md += `   - ${description}\n`;
+        });
+        md += `\n`;
+    }
+    if (hints.length > 0) {
+        md += `可能的处理：\n`;
+        hints.slice(0, 6).forEach((h) => {
+            md += `- ${String(h)}\n`;
+        });
+        md += `\n`;
+    }
+
+    return md.trim();
+}
+
+function searchSites({ query, limit, page, pageSize, kind, files, taxonomy, term, refresh }) {
+    const q = String(query || '').trim();
+    const fullQuery = q.toLowerCase();
+    const tokens = normalizeSearchTokens(q);
+    const paging = normalizePagination({ page, pageSize, limit });
+    refreshMcpFileList(Boolean(refresh));
+
+    const allowedKinds = new Set(['any', 'webstack', 'friendlinks', 'headers']);
+    const kindFilter = allowedKinds.has(String(kind || 'any')) ? String(kind || 'any') : 'any';
+    const taxonomyFilter = taxonomy !== undefined ? String(taxonomy || '').trim().toLowerCase() : '';
+    const termFilter = term !== undefined ? String(term || '').trim().toLowerCase() : '';
+
+    const fileSet = Array.isArray(files) && files.length > 0
+        ? new Set(files.map((x) => path.resolve(String(x || '').trim())).filter(Boolean))
+        : null;
+
+    const ranked = [];
+    const sourcesCount = mcpIndex.files.length;
+    const facetKind = new Map();
+    const facetTaxonomy = new Map();
+    const facetTerm = new Map();
+    const candidates = fileSet ? mcpIndex.files.filter((f) => fileSet.has(f)) : mcpIndex.files;
+    candidates.forEach((filePath) => {
+        const extracted = extractSiteItemsFromYamlFile(filePath);
+        extracted.items.forEach((site) => {
+            if (!site || !site.url) return;
+            if (kindFilter !== 'any' && site.kind !== kindFilter) return;
+            if (taxonomyFilter && String(site.taxonomy || '').toLowerCase() !== taxonomyFilter) return;
+            if (termFilter && String(site.term || '').toLowerCase() !== termFilter) return;
+            let score = 0;
+            if (q) {
+                score = scoreSiteMatch(site, tokens, fullQuery);
+                if (score <= 0) return;
+            }
+            ranked.push({ score, site });
+            const k = String(site.kind || '').trim();
+            const tx = String(site.taxonomy || '').trim();
+            const tm = String(site.term || '').trim();
+            if (k) facetKind.set(k, (facetKind.get(k) || 0) + 1);
+            if (tx) facetTaxonomy.set(tx, (facetTaxonomy.get(tx) || 0) + 1);
+            if (tm) facetTerm.set(tm, (facetTerm.get(tm) || 0) + 1);
+        });
+    });
+    if (q) {
+        ranked.sort((a, b) => b.score - a.score);
+    } else {
+        ranked.sort((a, b) => {
+            const sa = a && a.site ? a.site : {};
+            const sb = b && b.site ? b.site : {};
+            const ax = String(sa.taxonomy || '');
+            const bx = String(sb.taxonomy || '');
+            if (ax !== bx) return ax.localeCompare(bx, 'zh-CN');
+            const at = String(sa.term || '');
+            const bt = String(sb.term || '');
+            if (at !== bt) return at.localeCompare(bt, 'zh-CN');
+            const an = String(sa.title || '');
+            const bn = String(sb.title || '');
+            if (an !== bn) return an.localeCompare(bn, 'zh-CN');
+            const au = String(sa.url || '');
+            const bu = String(sb.url || '');
+            return au.localeCompare(bu);
+        });
+    }
+    const total = ranked.length;
+    const pages = Math.max(1, Math.ceil(total / paging.pageSize));
+    const safePage = Math.max(1, Math.min(paging.page, pages));
+    const start = (safePage - 1) * paging.pageSize;
+    const end = start + paging.pageSize;
+    const toPublicSite = (site) => {
+        const s = site && typeof site === 'object' ? site : {};
+        return {
+            title: s.title ? String(s.title) : '',
+            url: s.url ? String(s.url) : '',
+            description: s.description ? String(s.description) : '',
+            taxonomy: s.taxonomy ? String(s.taxonomy) : '',
+            term: s.term ? String(s.term) : '',
+            kind: s.kind ? String(s.kind) : ''
+        };
+    };
+    const results = ranked.slice(start, end).map((r) => toPublicSite(r.site));
+    const baseArgs = {
+        query: q,
+        page: safePage,
+        pageSize: paging.pageSize,
+        kind: kindFilter !== 'any' ? kindFilter : '',
+        taxonomy: taxonomyFilter ? String(taxonomy || '') : '',
+        term: termFilter ? String(term || '') : ''
+    };
+    const prevArgs = safePage > 1 ? { ...baseArgs, page: safePage - 1 } : null;
+    const nextArgs = safePage < pages ? { ...baseArgs, page: safePage + 1 } : null;
+    const firstArgs = pages > 1 && safePage !== 1 ? { ...baseArgs, page: 1 } : null;
+    const lastArgs = pages > 1 && safePage !== pages ? { ...baseArgs, page: pages } : null;
+
+    const followups = [];
+    if (safePage > 1) followups.push({ label: '上一页', resource: buildSearchResourceUri(prevArgs) });
+    if (safePage < pages) followups.push({ label: '下一页', resource: buildSearchResourceUri(nextArgs) });
+
+    if (!taxonomyFilter) {
+        const topTax = sortFacetEntries(facetTaxonomy, 5);
+        topTax.forEach((t) => {
+            const args = { ...baseArgs, page: 1, taxonomy: t.value };
+            followups.push({ label: `只看 一级分类：${t.value}（${t.count}）`, resource: buildSearchResourceUri(args) });
+        });
+    }
+
+    if (!termFilter) {
+        const topTerm = sortFacetEntries(facetTerm, 5);
+        topTerm.forEach((t) => {
+            const args = { ...baseArgs, page: 1, term: t.value };
+            followups.push({ label: `只看 二级分类：${t.value}（${t.count}）`, resource: buildSearchResourceUri(args) });
+        });
+    }
+
+    let suggestedFacets = null;
+    if (q && total === 0) {
+        const gKind = new Map();
+        const gTax = new Map();
+        const gTerm = new Map();
+        candidates.forEach((filePath) => {
+            const extracted = extractSiteItemsFromYamlFile(filePath);
+            extracted.items.forEach((site) => {
+                if (!site || !site.url) return;
+                if (kindFilter !== 'any' && site.kind !== kindFilter) return;
+                const k = String(site.kind || '').trim();
+                const tx = String(site.taxonomy || '').trim();
+                const tm = String(site.term || '').trim();
+                if (k) gKind.set(k, (gKind.get(k) || 0) + 1);
+                if (tx) gTax.set(tx, (gTax.get(tx) || 0) + 1);
+                if (tm) gTerm.set(tm, (gTerm.get(tm) || 0) + 1);
+            });
+        });
+        suggestedFacets = {
+            kinds: sortFacetEntries(gKind, 10),
+            taxonomies: sortFacetEntries(gTax, 10),
+            terms: sortFacetEntries(gTerm, 10)
+        };
+    }
+    const hints = [];
+    if (sourcesCount === 0) {
+        hints.push('未检测到可用数据源：请检查 SEARCH_DATA_DIRS 或 BASE_DIR 是否指向正确的数据目录（通常是 .../data）。');
+        hints.push('如果你使用 Docker 方式运行，请确认已把宿主机的 data 目录挂载到容器内可访问的位置。');
+    } else if (total === 0) {
+        if (q) hints.push('尝试换更短或更通用的关键词。');
+        hints.push('点击上方的“只看 一级分类/二级分类”先缩小范围。');
+    }
+
+    return {
+        query: q,
+        total,
+        page: safePage,
+        pageSize: paging.pageSize,
+        pages,
+        returned: results.length,
+        hasPrev: safePage > 1,
+        hasNext: safePage < pages,
+        facets: {
+            kinds: sortFacetEntries(facetKind, 10),
+            taxonomies: sortFacetEntries(facetTaxonomy, 10),
+            terms: sortFacetEntries(facetTerm, 10)
+        },
+        navigation: {
+            first: firstArgs ? { page: 1, resource: buildSearchResourceUri(firstArgs) } : null,
+            prev: prevArgs ? { page: safePage - 1, resource: buildSearchResourceUri(prevArgs) } : null,
+            next: nextArgs ? { page: safePage + 1, resource: buildSearchResourceUri(nextArgs) } : null,
+            last: lastArgs ? { page: pages, resource: buildSearchResourceUri(lastArgs) } : null
+        },
+        followups,
+        suggestedFacets,
+        request: baseArgs,
+        sourcesCount,
+        hints,
+        results
+    };
+}
+
+function createMcpJsonRpcError(code, message, data) {
+    const err = { code: Number(code) || -32603, message: String(message || 'Error') };
+    if (data !== undefined) err.data = data;
+    return err;
+}
+
+let mcpProcessor = null;
+
+function createMcpProcessor() {
+    const tools = [
+        {
+            name: 'search_sites',
+            description: '在站内收录数据中按标题/title、地址/url、描述/description、一级分类/taxonomy、二级分类/term 搜索站点，支持分页返回匹配列表。',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    query: { type: 'string', description: '搜索关键词；可为空用于先浏览再筛选。' },
+                    page: { type: 'integer', minimum: 1, description: '页码（从 1 开始）。', default: 1 },
+                    pageSize: { type: 'integer', minimum: 1, maximum: 100, description: '每页数量（1-100）。', default: 20 },
+                    limit: { type: 'integer', minimum: 1, maximum: 100, description: '兼容参数：等价于 pageSize。' },
+                    kind: { type: 'string', enum: ['any', 'webstack', 'friendlinks', 'headers'], description: '数据类型过滤。', default: 'any' },
+                    files: { type: 'array', items: { type: 'string' }, description: '限定搜索范围为指定文件路径集合（可选）。' },
+                    taxonomy: { type: 'string', description: '一级分类过滤（完全匹配）。' },
+                    term: { type: 'string', description: '二级分类过滤（完全匹配）。' },
+                    format: { type: 'string', enum: ['markdown', 'json'], description: '返回格式：markdown（默认，适合阅读/可点击翻页）或 json（结构化，字段更完整）。', default: 'markdown' },
+                    refresh: { type: 'boolean', description: '强制刷新索引（通常不需要）。', default: false }
+                }
+            }
+        }
+    ];
+
+    const serverInfo = { name: 'noisedh-yaml-server', version: '1.0.0' };
+    const capabilities = { tools: { listChanged: false } };
+
+    function readSearchResource(uri) {
+        let u;
+        try {
+            u = new URL(String(uri || ''));
+        } catch (_) {
+            return null;
+        }
+        if (u.protocol !== 'resource:' || u.hostname !== 'noisedh') return null;
+        if (u.pathname !== '/search') return null;
+
+        const args = {
+            query: u.searchParams.get('query') || '',
+            page: u.searchParams.get('page') ? Number(u.searchParams.get('page')) : 1,
+            pageSize: u.searchParams.get('pageSize') ? Number(u.searchParams.get('pageSize')) : 20,
+            kind: u.searchParams.get('kind') || 'any',
+            taxonomy: u.searchParams.get('taxonomy') || '',
+            term: u.searchParams.get('term') || '',
+            refresh: false
+        };
+        const out = searchSites(args);
+        const text = renderSearchMarkdown(out);
+        return { uri: String(uri), mimeType: 'text/markdown', text };
+    }
+
+    function handleRequest(msg, context) {
+        const id = msg && Object.prototype.hasOwnProperty.call(msg, 'id') ? msg.id : undefined;
+        const method = msg && msg.method ? String(msg.method) : '';
+        const params = msg && msg.params ? msg.params : {};
+        const protocolVersion = (context && context.protocolVersion) || getLatestMcpProtocolVersion();
+
+        if (method === 'initialize') {
+            return { jsonrpc: '2.0', id, result: { protocolVersion, capabilities, serverInfo } };
+        }
+        if (method === 'tools/list') {
+            return { jsonrpc: '2.0', id, result: { tools } };
+        }
+        if (method === 'resources/list') {
+            return {
+                jsonrpc: '2.0',
+                id,
+                result: {
+                    resources: [
+                        { uri: 'resource://noisedh/start', name: '开始', mimeType: 'text/markdown' },
+                        { uri: 'resource://noisedh/help', name: '帮助', mimeType: 'text/markdown' },
+                        { uri: 'resource://noisedh/search', name: '搜索', mimeType: 'text/markdown' }
+                    ]
+                }
+            };
+        }
+        if (method === 'resources/read') {
+            const uri = params && params.uri ? String(params.uri) : '';
+            if (uri === 'resource://noisedh/start') {
+                const text =
+                    `NOISE导航 MCP\n\n` +
+                    `- [打开搜索（可点击翻页）](resource://noisedh/search)\n` +
+                    `- [帮助](resource://noisedh/help)\n\n` +
+                    `示例\n\n` +
+                    `- [搜索：AI](resource://noisedh/search?query=AI&page=1&pageSize=20)\n` +
+                    `- [搜索：设计](resource://noisedh/search?query=%E8%AE%BE%E8%AE%A1&page=1&pageSize=20)\n\n` +
+                    `提示\n\n` +
+                    `- 搜索结果支持点击“首页/上一页/下一页/末页/页码”翻页\n` +
+                    `- 关键词可匹配站点名/域名/描述\n` +
+                    `- 可点击“只看 一级分类/二级分类”缩小范围\n`;
+                return { jsonrpc: '2.0', id, result: { contents: [{ uri, mimeType: 'text/markdown', text }] } };
+            }
+            if (uri === 'resource://noisedh/help') {
+                const text =
+                    `可用能力\n\n` +
+                    `- 搜索站点：使用工具 search_sites\n` +
+                    `- 起始页：resource://noisedh/start\n` +
+                    `- 搜索页：resource://noisedh/search\n` +
+                    `- 翻页：在搜索结果中点击“首页/上一页/下一页/末页”或页码\n\n` +
+                    `提示\n\n` +
+                    `- 关键词可匹配标题/域名/描述（description）\n` +
+                    `- 如果结果很多，优先点“只看 一级分类/二级分类”来缩小范围\n`;
+                return { jsonrpc: '2.0', id, result: { contents: [{ uri, mimeType: 'text/markdown', text }] } };
+            }
+            const content = readSearchResource(uri);
+            if (content) {
+                return { jsonrpc: '2.0', id, result: { contents: [content] } };
+            }
+            return {
+                jsonrpc: '2.0',
+                id,
+                error: createMcpJsonRpcError(
+                    -32602,
+                    'Invalid resource uri',
+                    { examples: ['resource://noisedh/start', 'resource://noisedh/search?query=AI&page=1&pageSize=20'] }
+                )
+            };
+        }
+        if (method === 'tools/call') {
+            const name = params && params.name ? String(params.name) : '';
+            const args = params && params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
+            if (name === 'search_sites') {
+                const out = searchSites(args || {});
+                const format = args && args.format ? String(args.format) : 'markdown';
+                return {
+                    jsonrpc: '2.0',
+                    id,
+                    result: {
+                        content: [{
+                            type: 'text',
+                            text: format === 'json' ? JSON.stringify(out, null, 2) : renderSearchMarkdown(out)
+                        }]
+                    }
+                };
+            }
+            return { jsonrpc: '2.0', id, error: createMcpJsonRpcError(-32601, `Unknown tool: ${name}`) };
+        }
+        return { jsonrpc: '2.0', id, error: createMcpJsonRpcError(-32601, `Method not found: ${method}`) };
+    }
+
+    return { handleRequest };
+}
+
+function getMcpProcessor() {
+    if (!mcpProcessor) mcpProcessor = createMcpProcessor();
+    return mcpProcessor;
+}
+
+app.get('/mcp', mcpRateLimit, maybeVerifyMcpToken, (req, res) => {
+    const accept = String(req.headers.accept || '').toLowerCase();
+    if (!accept.includes('text/event-stream')) {
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    const requestedVersion = negotiateMcpProtocolVersion(req, null);
+    if (!requestedVersion) {
+        return res.status(400).json({ error: 'Unsupported MCP protocol version' });
+    }
+
+    const sessionId = getMcpSessionIdFromRequest(req);
+    const session = sessionId ? mcpSessions.get(sessionId) : null;
+    if (sessionId && !session) {
+        return res.status(404).json({ error: 'MCP session not found' });
+    }
+    if (session) touchMcpSession(session, requestedVersion);
+
+    openMcpSseStream(req, res, session);
+    return undefined;
+});
+
+app.post('/mcp', mcpRateLimit, maybeVerifyMcpToken, (req, res) => {
+    const msg = req.body;
+    if (!msg || typeof msg !== 'object' || Array.isArray(msg)) {
+        return res.status(400).json({ jsonrpc: '2.0', id: null, error: createMcpJsonRpcError(-32700, 'Parse error') });
+    }
+
+    const protocolVersion = negotiateMcpProtocolVersion(req, msg);
+    if (!protocolVersion) {
+        return res.status(400).json({ error: 'Unsupported MCP protocol version' });
+    }
+
+    const method = msg && msg.method ? String(msg.method) : '';
+    let session = getMcpSessionFromRequest(req);
+    if (getMcpSessionIdFromRequest(req) && !session) {
+        return res.status(404).json({ error: 'MCP session not found' });
+    }
+    if (method === 'initialize' && !session) {
+        session = createMcpSession();
+    }
+    touchMcpSession(session, protocolVersion);
+    if (session) {
+        res.setHeader('Mcp-Session-Id', session.id);
+        res.setHeader('MCP-Protocol-Version', session.protocolVersion || protocolVersion);
+    }
+
+    const isNotification = !Object.prototype.hasOwnProperty.call(msg, 'id');
+    const isResponse = !method && Object.prototype.hasOwnProperty.call(msg, 'id')
+        && (Object.prototype.hasOwnProperty.call(msg, 'result') || Object.prototype.hasOwnProperty.call(msg, 'error'));
+    if (isResponse) return res.status(202).end();
+    if (isNotification) return res.status(204).end();
+
+    const { handleRequest } = getMcpProcessor();
+    const resp = handleRequest(msg, { protocolVersion, session });
+    if (requestPrefersSseResponse(req)) {
+        openMcpSseStream(req, res, session);
+        writeSseEvent(res, resp, { event: 'message', id: `${Date.now()}` });
+        return res.end();
+    }
+    return res.json(resp);
+});
+
+app.delete('/mcp', mcpRateLimit, maybeVerifyMcpToken, (req, res) => {
+    const sessionId = getMcpSessionIdFromRequest(req);
+    if (!sessionId) {
+        return res.status(400).json({ error: 'MCP session id required' });
+    }
+
+    const session = mcpSessions.get(sessionId);
+    if (!session) {
+        return res.status(404).json({ error: 'MCP session not found' });
+    }
+
+    Array.from(session.streams).forEach((conn) => {
+        try {
+            conn.res.end();
+        } catch (_) {
+            // ignore close errors
+        }
+        removeMcpSseConnection(conn);
+    });
+    mcpSessions.delete(sessionId);
+    return res.status(204).end();
+});
+
+function sendMcpMessage(write, msg) {
+    const body = Buffer.from(JSON.stringify(msg), 'utf8');
+    const header = `Content-Length: ${body.length}\r\n\r\n`;
+    write(Buffer.concat([Buffer.from(header, 'utf8'), body]));
+}
+
+function startMcpStdioServer() {
+    const write = (buf) => process.stdout.write(buf);
+    let buffer = Buffer.alloc(0);
+    const { handleRequest } = getMcpProcessor();
+
+    function tryParseFrames() {
+        while (buffer.length > 0) {
+            const headerEnd = buffer.indexOf('\r\n\r\n');
+            if (headerEnd === -1) return;
+            const headerRaw = buffer.slice(0, headerEnd).toString('utf8');
+            const lines = headerRaw.split('\r\n').map((l) => l.trim()).filter(Boolean);
+            let contentLength = 0;
+            for (const l of lines) {
+                const idx = l.toLowerCase().indexOf('content-length:');
+                if (idx === 0) {
+                    const v = l.slice('content-length:'.length).trim();
+                    contentLength = Number(v) || 0;
+                }
+            }
+            const bodyStart = headerEnd + 4;
+            const bodyEnd = bodyStart + contentLength;
+            if (buffer.length < bodyEnd) return;
+            const body = buffer.slice(bodyStart, bodyEnd).toString('utf8');
+            buffer = buffer.slice(bodyEnd);
+            let msg;
+            try {
+                msg = JSON.parse(body);
+            } catch (e) {
+                sendMcpMessage(write, { jsonrpc: '2.0', id: null, error: createMcpJsonRpcError(-32700, 'Parse error') });
+                continue;
+            }
+            const isNotification = msg && !Object.prototype.hasOwnProperty.call(msg, 'id');
+            if (isNotification) continue;
+            const resp = handleRequest(msg);
+            if (resp) sendMcpMessage(write, resp);
+        }
+    }
+
+    process.stdin.on('data', (chunk) => {
+        buffer = Buffer.concat([buffer, chunk]);
+        tryParseFrames();
+    });
+}
 // GET 路由，用于统计 data 文件夹中 webstack.yml 文件中 url 字段的数量
 app.get('/api/statistics', async (req, res) => {
     const dataDir = path.resolve(baseDir, 'data');
@@ -1258,8 +2335,8 @@ app.get('/api/statistics', async (req, res) => {
                     }
                 });
             } else {
-                console.error('YAML 文件格式不正确:', yamlFilePath);
-                res.status(400).json({ error: 'YAML 文件格式不正确' });
+                console.error('数据格式不正确:', yamlFilePath);
+                res.status(400).json({ error: '数据格式不正确' });
                 return;
             }
         } else {
@@ -1292,7 +2369,7 @@ app.post('/api/invalid-links/check', verifyToken, async (req, res) => {
     try {
         const raw = await fs.promises.readFile(absolutePath, 'utf8');
         const yamlData = yaml.load(raw) || [];
-        if (!Array.isArray(yamlData)) return res.status(400).json({ error: 'YAML 文件格式不正确' });
+        if (!Array.isArray(yamlData)) return res.status(400).json({ error: '数据格式不正确' });
 
         const allLinks = collectWebstackLinks(yamlData);
         const totalLinks = allLinks.length;
@@ -1398,18 +2475,18 @@ app.delete('/api/delete', verifyToken, (req, res) => {
                 return res.status(404).send('文件未找到');
             }
             console.error('读取文件时出错:', err);
-            return res.status(500).send('读取 YAML 文件失败');
+            return res.status(500).send('读取数据失败');
         }
 
         let yamlData;
         try {
             yamlData = yaml.load(data) || [];
         } catch (parseError) {
-            console.error('解析 YAML 文件失败:', parseError);
-            return res.status(500).send('解析 YAML 文件失败');
+            console.error('解析数据失败:', parseError);
+            return res.status(500).send('解析数据失败');
         }
         if (!Array.isArray(yamlData)) {
-            return res.status(400).send('YAML 顶层结构必须为数组');
+            return res.status(400).send('数据顶层结构必须为数组');
         }
 
         const effectiveKind = String(kind || detectYamlKind(filename, yamlData) || 'webstack');
@@ -1465,12 +2542,12 @@ app.delete('/api/delete', verifyToken, (req, res) => {
             return res.status(404).send('未找到匹配的条目');
         }
 
-        // 将更新后的数据写回 YAML 文件
+        // 将更新后的数据写回数据源
         const yamlString = '---\n' + yaml.dump(yamlData, { noRefs: true, lineWidth: -1 });
         fs.writeFile(absolutePath, yamlString, async (err) => {
             if (err) {
                 console.error('写入文件时出错:', err);
-                return res.status(500).send('写入 YAML 文件失败');
+                return res.status(500).send('写入数据失败');
             }
 
             // 触发更新机制
@@ -1500,15 +2577,27 @@ app.delete('/api/delete', verifyToken, (req, res) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => {
-    console.log(`服务器正在运行在 http://localhost:${PORT}`);
-    console.log('可用的路由:');
-    console.log('GET /api/export-bookmarks');
-    console.log('GET /data');
-    console.log('GET /data/:filename');
-    console.log('GET /api/notifications');
-    console.log('POST /api/yaml');
-    console.log('GET /api/search');
-    console.log('DELETE /api/delete');
-    console.log('GET /api/statistics');
-});
+if (isMcpStdioMode()) {
+    console.log = (...args) => console.error(...args);
+    if (!parseBooleanEnv('MCP_WITH_HTTP') || parseBooleanEnv('HTTP_DISABLED') || process.argv.includes('--no-http')) {
+        console.error('MCP stdio 已启用：HTTP 默认不启动。如需同时提供 HTTP API，请设置 MCP_WITH_HTTP=true 且不要传 --no-http/HTTP_DISABLED。');
+    }
+    startMcpStdioServer();
+}
+
+if (shouldStartHttpServer()) {
+    app.listen(PORT, () => {
+        console.log(`服务器正在运行在 http://localhost:${PORT}`);
+        console.log('可用的路由:');
+        console.log('GET /api/health');
+        console.log('GET /api/export-bookmarks');
+        console.log('GET /data');
+        console.log('GET /data/:filename');
+        console.log('GET /api/notifications');
+        console.log('POST /api/yaml');
+        console.log('GET /api/search');
+        console.log('DELETE /api/delete');
+        console.log('GET /api/statistics');
+        console.log('POST /mcp');
+    });
+}

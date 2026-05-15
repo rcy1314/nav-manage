@@ -5,7 +5,7 @@
 边界说明：本文主要介绍 `yaml-server` 后端部署。  
 如果你要部署“带 Hugo 主题网站本体”的整站 Docker 运行，请优先阅读：
 
-- [DOCKER_HUGO_THEME_DEPLOY.md](file:///Library/Github/noisedh/DOCKER_HUGO_THEME_DEPLOY.md)
+- [DOCKER_HUGO.md](../../DOCKER_HUGO.md)
 
 ## 适用场景
 
@@ -26,18 +26,25 @@
 
 写入类接口必须携带管理员 Token（强烈建议同时配合 HTTPS 与反向代理限制来源）。
 
-- Token 来源：环境变量 `API_TOKEN`
+- Token 来源：环境变量 `API_TOKEN`（未设置时，写入类接口会返回 503）
 - 请求头：`Authorization: Bearer <API_TOKEN>`
 
 注意：读取类接口（如 `/data`、`/data/:filename`）默认是开放的；若你不希望公开，请在反向代理层做访问控制，或自行将这些路由也加上鉴权。
 
 ## 环境变量清单
 
-必选：
+必选（如果你需要写入/删除/失效检测等管理能力）：
 
 - `PORT`：服务监听端口（默认 8990）
-- `API_TOKEN`：管理员 Token（扩展端必须一致）
+- `API_TOKEN`：管理员 Token（扩展端必须一致；未设置时写入类接口不可用）
 - `BASE_DIR`：站点根目录（默认为仓库根，生产环境建议显式设置）
+
+仅公开 MCP 搜索（不提供写入类接口）：
+
+- 可以不设置 `API_TOKEN`
+- 启用 MCP HTTP：`MCP_HTTP=true`
+- 若要完全公开：`MCP_REQUIRE_TOKEN=false`
+- 若仍需鉴权但希望与管理员 Token 分离：设置 `MCP_TOKEN=<公开用Token>` 并保持 `MCP_REQUIRE_TOKEN=true`
 
 可选（Hugo 更新）：
 
@@ -75,6 +82,160 @@
 - `INVALID_LINKS_MD`：失效归档文件路径（默认 `${BASE_DIR}/content/invalidlinks.md`）
 - `INVALID_LINKS_COUNTS`：失效计数 JSON 路径（默认 `yaml-server/invalidlink_counts.json`）
 
+可选（MCP，供 AI 客户端接入）：
+
+- `MCP_ENABLED=true|false`：开启 MCP（等价于启动参数 `--mcp`，默认 false）
+- `MCP_MODE=stdio`：强制以 stdio 模式启用 MCP
+- `MCP_HTTP=true|false`：开启 MCP 的 HTTP 接入（统一使用 `/mcp` 端点，默认 false）
+- `MCP_WITH_HTTP=true|false`：启用 MCP 时是否同时启动 HTTP（默认 false）
+- `HTTP_DISABLED=true|false`：禁用 HTTP（等价于启动参数 `--no-http`，默认 false）
+- `MCP_REQUIRE_TOKEN=true|false`：`/mcp` 是否必须携带鉴权 Token（默认 true，使用 `API_TOKEN`）
+- `MCP_TOKEN`：`/mcp` 的鉴权 Token（可选；不填则复用 `API_TOKEN`）
+- `MCP_RATE_LIMIT_MAX`：MCP 访问频率限制（按 IP 计数）窗口内最大请求数（默认 120）
+- `MCP_RATE_LIMIT_WINDOW_MS`：MCP 访问频率限制窗口（毫秒，默认 60000）
+- `MCP_RATE_LIMIT_DISABLED=true|false`：关闭 MCP 访问频率限制（默认 false）
+- `MCP_SCAN_INTERVAL_MS`：扫描数据源的间隔（默认 5000）
+- `MCP_SCAN_MAX_DEPTH`：扫描目录最大深度（默认 6）
+- `MCP_SCAN_MAX_FILES`：最多扫描文件数（默认 5000）
+
+## MCP（供 AI 客户端接入）
+
+本服务支持以 HTTP（统一使用 `/mcp` 端点，推荐）或 stdio 方式提供 MCP，便于接入不同 AI 客户端进行自然语言搜索/翻页。
+
+启用方式（任选其一）：
+
+- 启动参数：`node server.js --mcp`
+- 环境变量：`MCP_ENABLED=true` 或 `MCP_MODE=stdio`
+- HTTP 接入（推荐用于“只填 URL”接入）：`MCP_HTTP=true` 或 `node server.js --mcp-http`
+
+当开启 MCP 时：
+
+- 使用 `--mcp`（stdio）时，默认不会启动 HTTP（避免输出干扰 stdio 协议）；如需同时保留 HTTP，设置 `MCP_WITH_HTTP=true`
+- 只需要“URL 接入”时，推荐使用 `MCP_HTTP=true`（统一使用 `/mcp` 端点，不需要启动 stdio）
+- 搜索结果会返回可点击的“首页/上一页/下一页/末页/页码”，以及可点击的“只看 一级分类/二级分类”“每页数量”等快捷操作
+
+当前提供的 MCP 能力：
+
+- `search_sites`：搜索站点（支持分页与可点击翻页/筛选）
+  - 入参：`query`（可为空用于先浏览/再筛选）、`page`、`pageSize`、`kind`、`taxonomy`、`term` 等
+  - 关键词会在标题/title、地址/url、描述/description、一级分类/taxonomy、二级分类/term 中匹配
+  - 需要结构化完整字段时可用：`format=json`（否则默认 markdown）
+
+字段映射（数据文件真实字段；其中 taxonomy/term 可作为筛选参数）：
+
+- `一级分类` → `taxonomy`
+- `二级分类` → `term`
+- `地址` → `url`
+- `描述` → `description`
+
+### AI 客户端配置（URL / stdio）
+
+不少 AI 客户端支持直接填写 `url` 的方式接入 MCP（推荐，最少配置）。本服务在 HTTP 模式下统一使用 `/mcp` 端点。
+
+补充说明：
+
+- `/mcp` 支持标准 MCP HTTP 的 `GET` / `POST` / `DELETE`
+- 服务端可能返回单次 JSON，也可能返回 `text/event-stream`
+- 初始化后，服务端可能返回 `Mcp-Session-Id`，客户端后续请求应继续携带
+
+前提（URL 方式）：
+
+- 你的服务已能通过域名/IP 访问（例如 `http://<ip>:8990` 或 `https://api.example.com`）
+- 已启用 MCP HTTP：`MCP_HTTP=true`（推荐）或使用 `--mcp`/`--mcp-http`
+- 默认需要鉴权：`Authorization: Bearer <Token>`（可用 `MCP_REQUIRE_TOKEN=false` 关闭）
+  - 若设置了 `MCP_TOKEN`，则 Token 为 `MCP_TOKEN`
+  - 否则 Token 复用 `API_TOKEN`
+ - 若你打算公开 `/mcp`：建议保留访问频率限制（按 IP 计数），避免被滥用
+
+示例（按实际地址修改）：
+
+```json
+{
+  "mcpServers": {
+    "NOISE导航": {
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer <Token>"
+      }
+    }
+  }
+}
+```
+
+公开模式（不需要 Token，但保留访问频率限制）：
+
+```json
+{
+  "mcpServers": {
+    "NOISE导航": {
+      "url": "https://api.example.com/mcp"
+    }
+  }
+}
+```
+
+如果你的 AI 客户端只支持 “本地命令（stdio）” 而不支持 `url`，再使用 Node 方式（本机需要能访问数据目录）：
+
+```json
+{
+  "mcpServers": {
+    "NOISE导航": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/noisedh/extension/yaml-server/server.js",
+        "--mcp",
+        "--no-http"
+      ],
+      "env": {
+        "BASE_DIR": "/path/to/hugo",
+        "SEARCH_DATA_DIRS": "/path/to/hugo/data"
+      }
+    }
+  }
+}
+```
+
+### MCP 接入参数说明（最全）
+
+下面解释 AI 客户端配置里常见字段/参数分别做什么。
+
+#### 1) AI 客户端配置字段
+
+- `mcpServers."NOISE导航"`：你自定义的服务名（可改），用于在客户端里显示
+- `command`：启动 MCP 进程的命令（推荐 `node`）
+- `args`：传给 `command` 的参数数组（每个元素是一个独立参数）
+- `env`：用于给进程注入环境变量（推荐至少设置 `BASE_DIR` 或 `SEARCH_DATA_DIRS`，让 MCP 能找到数据目录）
+
+#### 2) Node 启动参数
+
+示例命令等价于：
+
+```bash
+BASE_DIR=/path/to/hugo SEARCH_DATA_DIRS=/path/to/hugo/data node /absolute/path/to/noisedh/extension/yaml-server/server.js --mcp --no-http
+```
+
+- `--mcp`：开启 MCP（stdio）
+- `--no-http`：关闭 HTTP（避免任何输出干扰 stdio 协议；你只用搜索时建议一直关）
+- `BASE_DIR` / `SEARCH_DATA_DIRS`：用于告诉 MCP 去哪里读取数据（至少设置一个）
+
+#### 4) MCP 启动参数 / 环境变量对照
+
+- `--mcp`：开启 MCP
+- `--no-http`：关闭 HTTP
+- `MCP_ENABLED=true`：开启 MCP（等价 `--mcp`）
+- `MCP_MODE=stdio`：强制 stdio 模式启用 MCP
+- `MCP_HTTP=true`：开启 MCP 的 HTTP 接入（统一使用 `/mcp` 端点）
+- `MCP_WITH_HTTP=true`：开启 MCP 的同时也启动 HTTP（适合“常驻 API + MCP”）
+- `HTTP_DISABLED=true`：禁用 HTTP（等价 `--no-http`）
+- `MCP_SCAN_INTERVAL_MS`：重新扫描数据的间隔
+- `MCP_SCAN_MAX_DEPTH`：递归扫描深度限制
+- `MCP_SCAN_MAX_FILES`：扫描文件数上限
+
+配置落地方式：
+
+- 在你的 AI 客户端中找到 MCP 配置入口（通常在“Developer/MCP/Tools”等设置里会有“Edit Config”或“Open Config”按钮）
+- 将上面的 `mcpServers` 片段复制进去即可
+
 ## 运行方式一：Docker Compose（推荐）
 
 在 [yaml-server](file:///Library/Github/noisedh/extension/yaml-server) 目录下使用仓库自带的 `docker-compose.yml`。
@@ -96,6 +257,7 @@ services:
       - API_TOKEN=change_me
       - ENABLE_HUGO=false
       - REMOTE_UPDATE_WEBHOOK=
+      - MCP_HTTP=true
     volumes:
       - /path/to/your/hugo-site:/app/hugo
 ```
@@ -112,7 +274,7 @@ services:
 
 ## 运行方式二：Docker run（适合已构建/已推送镜像）
 
-当你已经构建出镜像（例如 `noise233/nav-manage:v1.4` 或 `noise233/nav-manage:latest`）时，可以直接用 `docker run -d` 启动服务。
+当你已经构建出镜像（例如 `noise233/nav-manage:v1.8` 或 `noise233/nav-manage:latest`）时，可以直接用 `docker run -d` 启动服务。
 
 核心点：
 
@@ -139,7 +301,51 @@ docker run -d \
   -v /path/to/persist/notifications.json:/app/server/notifications.json \
   -v /path/to/persist/invalidlink_counts.json:/app/server/invalidlink_counts.json \
   --restart=always \
-  noise233/nav-manage:v1.4
+  noise233/nav-manage:v1.8
+```
+
+如果你希望容器启动时启用 MCP（HTTP 接入，统一使用 `/mcp` 端点），推荐设置 `MCP_HTTP=true`：
+
+```bash
+docker run -d \
+  --name noise233/nav-manage \
+  -p 8990:8990 \
+  -e PORT=8990 \
+  -e BASE_DIR=/app/hugo \
+  -e API_TOKEN=change_me_to_a_strong_token \
+  -e MCP_TOKEN=change_me_to_a_mcp_token \
+  -e MCP_REQUIRE_TOKEN=true \
+  -e MCP_RATE_LIMIT_MAX=120 \
+  -e MCP_RATE_LIMIT_WINDOW_MS=60000 \
+  -e ENABLE_HUGO=false \
+  -e MCP_HTTP=true \
+  -v /path/to/your/hugo-site:/app/hugo \
+  --restart=always \
+  noise233/nav-manage:v1.8
+```
+
+公开模式（不需要 Token，但保留访问频率限制）：
+
+```bash
+docker run -d \
+  --name noise233/nav-manage \
+  -p 8990:8990 \
+  -e PORT=8990 \
+  -e BASE_DIR=/app/hugo \
+  -e ENABLE_HUGO=false \
+  -e MCP_HTTP=true \
+  -e MCP_REQUIRE_TOKEN=false \
+  -e MCP_RATE_LIMIT_MAX=120 \
+  -e MCP_RATE_LIMIT_WINDOW_MS=60000 \
+  -v /path/to/your/hugo-site:/app/hugo \
+  --restart=always \
+  noise233/nav-manage:v1.8
+```
+
+如果你的 AI 客户端只能使用 stdio（且你本机有 Docker），才考虑用镜像方式单独跑 stdio MCP：
+
+```bash
+docker run --rm -i -v /path/to/your/hugo-site/data:/app/data noise233/nav-manage:v1.8 --mcp --no-http
 ```
 
 验证是否运行成功（示例）：
@@ -183,7 +389,7 @@ curl -X POST "http://localhost:8990/api/invalid-links/check" \
 
 ```bash
 cd /Library/Github/noisedh/extension/yaml-server
-IMAGE_TAG=v1.6 IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
+IMAGE_TAG=v1.8 IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
 ```
 
 仅打印命令（不推送）：
@@ -200,7 +406,39 @@ npm ci
 PORT=8990 BASE_DIR=/path/to/hugo API_TOKEN=change_me node server.js
 ```
 
+如果你要以 MCP 方式供 AI 客户端接入（默认不启用 HTTP）：
+
+```bash
+cd /Library/Github/noisedh/extension/yaml-server
+npm ci
+BASE_DIR=/path/to/hugo SEARCH_DATA_DIRS=/path/to/hugo/data node server.js --mcp
+```
+
 建议使用 systemd/pm2 保持常驻，并在反向代理（Nginx/Caddy）上做 HTTPS 与访问限制。
+
+## 运行方式四：Railway 一键部署（后端 API）
+
+仓库根目录已提供 [railway.json](file:///Library/Github/noisedh/railway.json)，导入仓库后会自动使用：
+
+- Dockerfile：`extension/yaml-server/Dockerfile`
+- 健康检查：`GET /api/health`
+- 监听端口：Railway 自动注入 `PORT`，服务端已兼容
+
+部署步骤：
+
+1. 在 Railway 新建项目，选择 **Deploy from GitHub repo**
+2. 选择仓库 `rcy1314/noisedh`
+3. 在 Variables 中至少设置：
+   - `API_TOKEN`（必填）
+   - `BASE_DIR`（建议 `/app/hugo`）
+   - `ENABLE_HUGO`（建议 `false`）
+4. 若你需要持久化 `data/` 与 `server_settings.json`，在 Railway 为服务挂载 Volume，并将挂载路径设为 `BASE_DIR`
+5. 部署完成后访问：`https://<your-domain>/api/health`
+
+与扩展联动时：
+
+- 扩展 `serverUrl` 填 Railway 服务域名
+- 扩展 `serverToken` 必须等于 Railway 的 `API_TOKEN`
 
 ## API 使用说明
 
@@ -236,8 +474,8 @@ Body（示意）：
     "url": "https://example.com",
     "logo": "https://example.com/favicon.ico",
     "description": "desc",
-    "taxonomy": "分类名",
-    "term": "子分类名"
+    "taxonomy": "一级分类名",
+    "term": "二级分类名"
   }
 }
 ```

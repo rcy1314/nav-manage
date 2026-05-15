@@ -20,4 +20,5 @@ COPY . .
 
 EXPOSE 8990
 
-CMD ["node","server.js"]
+ENTRYPOINT ["node","server.js"]
+CMD []
