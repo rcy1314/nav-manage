@@ -4,7 +4,7 @@
 
 全新重构扩展，带有AI一键分析推荐分类的扩展，随时随地收藏你的网址
 
-| ![预览](https://s2.loli.net/2025/05/05/BQaNdGi8u1CDjJM.png)  | ![823shots_so](https://cdn.jsdelivr.net/gh/rcy1314/tuchuang@main/uPic/823shots_so.png) |
+| ![预览](https://cdn.jsdelivr.net/gh/rcy1314/phototc@main/uPic/screenshot6.png) | ![823shots_so](https://cdn.jsdelivr.net/gh/rcy1314/tuchuang@main/uPic/823shots_so.png) |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | ![553shots_so](https://cdn.jsdelivr.net/gh/rcy1314/tuchuang@main/uPic/553shots_so.png) | ![369shots_so](https://cdn.jsdelivr.net/gh/rcy1314/tuchuang@main/uPic/369shots_so.png) |
 
