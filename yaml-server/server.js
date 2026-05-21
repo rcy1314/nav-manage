@@ -58,26 +58,6 @@ app.use(cors({
 
 app.use(express.json());
 
-let notifications = []; // 存储更新通知的数组
-const notificationsFilePath = path.resolve(__dirname, 'notifications.json'); // 指定 JSON 文件路径
-
-// 读取通知数据
-function readNotifications() {
-    if (fs.existsSync(notificationsFilePath)) {
-        const data = fs.readFileSync(notificationsFilePath, 'utf8');
-        if (data.trim() === '') {
-            return []; // 如果文件为空，返回空数组
-        }
-        return JSON.parse(data);
-    }
-    return []; // 如果文件不存在，返回空数组
-}
-
-// 写入通知数据
-function writeNotifications(notifications) {
-    fs.writeFileSync(notificationsFilePath, JSON.stringify(notifications, null, 2));
-}
-
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -392,6 +372,14 @@ function collectWebstackLinks(yamlData) {
     return items;
 }
 
+function normalizeSiteUrl(url) {
+    return String(url == null ? '' : url)
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/+$/, '');
+}
+
 function removeLinksByUrl(yamlData, urlsToRemove) {
     const urls = urlsToRemove instanceof Set ? urlsToRemove : new Set();
     if (!Array.isArray(yamlData) || urls.size === 0) return { yamlData, removed: [] };
@@ -424,6 +412,104 @@ function removeLinksByUrl(yamlData, urlsToRemove) {
         }
     });
     return { yamlData, removed };
+}
+
+const parsedYamlCache = new Map();
+const parsedYamlInFlight = new Map();
+
+async function getParsedYamlItemsCached(filePath) {
+    const abs = path.resolve(String(filePath || '').trim());
+    if (!abs) return { mtimeMs: 0, kind: 'unknown', items: [] };
+
+    let stat;
+    try {
+        stat = await fs.promises.stat(abs);
+        if (!stat.isFile()) return { mtimeMs: 0, kind: 'unknown', items: [] };
+    } catch (_) {
+        return { mtimeMs: 0, kind: 'unknown', items: [] };
+    }
+
+    const cached = parsedYamlCache.get(abs);
+    if (cached && cached.mtimeMs === stat.mtimeMs) return cached;
+
+    const inflight = parsedYamlInFlight.get(abs);
+    if (inflight) return await inflight;
+
+    const task = (async () => {
+        let raw = '';
+        try {
+            raw = await fs.promises.readFile(abs, 'utf8');
+        } catch (_) {
+            const empty = { mtimeMs: stat.mtimeMs, kind: 'unknown', items: [] };
+            parsedYamlCache.set(abs, empty);
+            return empty;
+        }
+
+        let yamlData;
+        try {
+            yamlData = yaml.load(raw) || [];
+        } catch (_) {
+            const empty = { mtimeMs: stat.mtimeMs, kind: 'unknown', items: [] };
+            parsedYamlCache.set(abs, empty);
+            return empty;
+        }
+
+        const kind = detectYamlKind(path.basename(abs), yamlData);
+        const items = [];
+
+        if (kind === 'friendlinks') {
+            (Array.isArray(yamlData) ? yamlData : []).forEach((it) => {
+                const title = it && it.title ? String(it.title) : '';
+                const url = it && it.url ? String(it.url) : '';
+                const description = it && it.description ? String(it.description) : '';
+                if (!url) return;
+                items.push({ title, url, description, kind: 'friendlinks', taxonomy: '', term: '' });
+            });
+        } else if (kind === 'headers') {
+            (Array.isArray(yamlData) ? yamlData : []).forEach((it) => {
+                if (!it) return;
+                const item = it.item ? String(it.item) : '';
+                const link = it.link ? String(it.link) : '';
+                if (link) {
+                    items.push({ title: item, url: link, description: it.icon ? String(it.icon) : '', kind: 'headers', taxonomy: 'headers', term: '' });
+                }
+                const list = Array.isArray(it.list) ? it.list : [];
+                list.forEach((s) => {
+                    const name = s && s.name ? String(s.name) : '';
+                    const url = s && s.url ? String(s.url) : '';
+                    if (!url) return;
+                    items.push({ title: name, url, description: item, kind: 'headers', taxonomy: 'headers', term: item });
+                });
+            });
+        } else {
+            const list = collectWebstackLinks(yamlData);
+            list.forEach((l) => {
+                const title = l && l.title ? String(l.title) : '';
+                const url = l && l.url ? String(l.url) : '';
+                const description = l && l.description ? String(l.description) : '';
+                if (!url) return;
+                items.push({
+                    title,
+                    url,
+                    description,
+                    kind: 'webstack',
+                    taxonomy: l && l.taxonomy ? String(l.taxonomy) : '',
+                    term: l && l.term ? String(l.term) : ''
+                });
+            });
+        }
+
+        const next = { mtimeMs: stat.mtimeMs, kind, items };
+        parsedYamlCache.set(abs, next);
+        return next;
+    })();
+
+    parsedYamlInFlight.set(abs, task);
+    try {
+        return await task;
+    } finally {
+        parsedYamlInFlight.delete(abs);
+    }
 }
 
 // 输出书签格式的目录
@@ -689,17 +775,29 @@ app.post('/api/server-settings', verifyToken, (req, res) => {
 // 读取现有通知
 function readNotifications() {
     const notificationsPath = path.join(storagePath, 'notifications.json'); // 存储在指定路径
-    if (fs.existsSync(notificationsPath)) {
+    try {
+        if (!fs.existsSync(notificationsPath)) return [];
         const data = fs.readFileSync(notificationsPath, 'utf8');
-        return JSON.parse(data);
+        if (!String(data || '').trim()) return [];
+        const parsed = JSON.parse(data);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+        return [];
     }
-    return [];
 }
 
 // 写入更新后的通知
 function writeNotifications(notifications) {
     const notificationsPath = path.join(storagePath, 'notifications.json'); // 存储在指定路径
-    fs.writeFileSync(notificationsPath, JSON.stringify(notifications, null, 2), 'utf8');
+    const dir = path.dirname(notificationsPath);
+    try {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    } catch (_) {}
+
+    const data = JSON.stringify(Array.isArray(notifications) ? notifications : [], null, 2);
+    const tmpPath = `${notificationsPath}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmpPath, data, 'utf8');
+    fs.renameSync(tmpPath, notificationsPath);
 }
 
 // 转义特殊字符
@@ -1109,8 +1207,10 @@ async function sendTelegramNotification(notification, term, taxonomy) {
 }
 
 // 搜索路由
-app.get('/api/search', (req, res) => {
+app.get('/api/search', async (req, res) => {
     const { keyword, filePath } = req.query;
+    const maxResultsRaw = req.query && req.query.limit !== undefined ? Number(req.query.limit) : Number(process.env.SEARCH_MAX_RESULTS || 300);
+    const maxResults = Number.isFinite(maxResultsRaw) && maxResultsRaw > 0 ? Math.min(Math.floor(maxResultsRaw), 2000) : 300;
 
     if (!filePath) {
         return res.status(400).send('未提供文件路径');
@@ -1152,106 +1252,41 @@ app.get('/api/search', (req, res) => {
         return res.status(404).send('文件未找到');
     }
 
-    fs.readFile(resolvedPath, 'utf8', (err, data) => {
-        if (err) {
-            if (err.code === 'ENOENT') return res.status(404).send('文件未找到');
-            console.error('读取文件时出错:', err);
-            return res.status(500).send('读取文件失败');
-        }
-
-        let yamlData;
-        try {
-            yamlData = yaml.load(data) || [];
-        } catch (parseError) {
-            console.error('解析数据失败:', parseError);
-            return res.status(500).send('解析数据失败');
-        }
-
+    try {
+        const parsed = await getParsedYamlItemsCached(resolvedPath);
+        const kw = String(keyword || '').trim().toLowerCase();
         const results = [];
-        const kw = String(keyword || '').toLowerCase();
-        const kind = detectYamlKind(path.basename(resolvedPath), yamlData);
 
-        if (kind === 'friendlinks') {
-            (yamlData || []).forEach((it) => {
-                const title = it && it.title ? String(it.title) : '';
-                const url = it && it.url ? String(it.url) : '';
-                const description = it && it.description ? String(it.description) : '';
-                if (
-                    title.toLowerCase().includes(kw) ||
-                    url.toLowerCase().includes(kw) ||
-                    description.toLowerCase().includes(kw)
-                ) {
-                    results.push({ title, url, description, kind: 'friendlinks' });
-                }
-            });
-            return res.json(results);
-        }
+        const matches = (text) => {
+            if (!kw) return true;
+            return String(text || '').toLowerCase().includes(kw);
+        };
 
-        if (kind === 'headers') {
-            (yamlData || []).forEach((it) => {
-                const item = it && it.item ? String(it.item) : '';
-                const link = it && it.link ? String(it.link) : '';
-                const icon = it && it.icon ? String(it.icon) : '';
-                if (
-                    item.toLowerCase().includes(kw) ||
-                    link.toLowerCase().includes(kw) ||
-                    icon.toLowerCase().includes(kw)
-                ) {
-                    results.push({ title: item, url: link, description: icon, kind: 'headers' });
-                }
-                const list = it && Array.isArray(it.list) ? it.list : [];
-                list.forEach((s) => {
-                    const name = s && s.name ? String(s.name) : '';
-                    const url = s && s.url ? String(s.url) : '';
-                    if (name.toLowerCase().includes(kw) || url.toLowerCase().includes(kw)) {
-                        results.push({ title: name, url, description: item, kind: 'headers' });
-                    }
+        for (let i = 0; i < parsed.items.length; i++) {
+            const it = parsed.items[i] || {};
+            if (
+                matches(it.title) ||
+                matches(it.url) ||
+                matches(it.description) ||
+                (parsed.kind === 'webstack' && (matches(it.taxonomy) || matches(it.term)))
+            ) {
+                results.push({
+                    title: it.title || '',
+                    url: it.url || '',
+                    description: it.description || '',
+                    kind: it.kind || parsed.kind || 'webstack',
+                    taxonomy: it.taxonomy || '',
+                    term: it.term || ''
                 });
-            });
-            return res.json(results);
-        }
-
-        (yamlData || []).forEach(entry => {
-            if (entry.links) {
-                entry.links.forEach(link => {
-                    if (
-                        (link.title && typeof link.title === 'string' && link.title.toLowerCase().includes(kw)) ||
-                        (link.url && typeof link.url === 'string' && link.url.toLowerCase().includes(kw)) ||
-                        (link.description && typeof link.description === 'string' && link.description.toLowerCase().includes(kw))
-                    ) {
-                        results.push({
-                            title: link.title,
-                            url: link.url,
-                            description: link.description,
-                            kind: 'webstack'
-                        });
-                    }
-                });
+                if (results.length >= maxResults) break;
             }
-            if (entry.list) {
-                entry.list.forEach(termEntry => {
-                    if (termEntry.links) {
-                        termEntry.links.forEach(link => {
-                            if (
-                                (link.title && typeof link.title === 'string' && link.title.toLowerCase().includes(kw)) ||
-                                (link.url && typeof link.url === 'string' && link.url.toLowerCase().includes(kw)) ||
-                                (link.description && typeof link.description === 'string' && link.description.toLowerCase().includes(kw))
-                            ) {
-                                results.push({
-                                    title: link.title,
-                                    url: link.url,
-                                    description: link.description,
-                                    kind: 'webstack'
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-        });
+        }
 
         return res.json(results);
-    });
+    } catch (e) {
+        console.error('搜索失败:', e && e.message ? e.message : e);
+        return res.status(500).send('搜索失败');
+    }
 });
 
 function parseBooleanEnv(name) {
@@ -1363,7 +1398,7 @@ function maybeVerifyMcpToken(req, res, next) {
 
 const mcpIndex = {
     lastScanAtMs: 0,
-    scanIntervalMs: Number(process.env.MCP_SCAN_INTERVAL_MS || 5000),
+    scanIntervalMs: Number(process.env.MCP_SCAN_INTERVAL_MS || 60000),
     files: [],
     cacheByFile: new Map()
 };
@@ -1524,6 +1559,13 @@ function refreshMcpFileList(force) {
     const files = [];
     dirs.forEach((dir) => {
         const resolved = path.resolve(dir);
+        try {
+            if (!fs.existsSync(resolved)) return;
+            const st = fs.statSync(resolved);
+            if (!st.isDirectory()) return;
+        } catch (_) {
+            return;
+        }
         files.push(...listYamlFilesRecursive(resolved));
     });
     const unique = Array.from(new Set(files.map((x) => path.resolve(x))));
@@ -2309,44 +2351,48 @@ function startMcpStdioServer() {
         tryParseFrames();
     });
 }
-// GET 路由，用于统计 data 文件夹中 webstack.yml 文件中 url 字段的数量
+// GET 路由，用于统计 webstack.yml 中唯一网站数量
 app.get('/api/statistics', async (req, res) => {
     const dataDir = path.resolve(baseDir, 'data');
     const yamlFilePath = path.join(dataDir, 'webstack.yml');
-    let urlCount = 0;
 
     try {
         if (fs.existsSync(yamlFilePath)) {
             const yamlContent = await fs.promises.readFile(yamlFilePath, 'utf8');
             const yamlData = yaml.load(yamlContent);
 
-            if (Array.isArray(yamlData)) {
-                yamlData.forEach(category => {
-                    if (Array.isArray(category.links)) {
-                        urlCount += category.links.length;
-                    }
-
-                    if (Array.isArray(category.list)) {
-                        category.list.forEach(subCategory => {
-                            if (Array.isArray(subCategory.links)) {
-                                urlCount += subCategory.links.length;
-                            }
-                        });
-                    }
-                });
-            } else {
+            if (!Array.isArray(yamlData)) {
                 console.error('数据格式不正确:', yamlFilePath);
                 res.status(400).json({ error: '数据格式不正确' });
                 return;
             }
+
+            const links = collectWebstackLinks(yamlData);
+            const uniqueUrls = new Set();
+
+            links.forEach((item) => {
+                const normalizedUrl = normalizeSiteUrl(item && item.url);
+                if (normalizedUrl) uniqueUrls.add(normalizedUrl);
+            });
+
+            const rawUrlCount = links.length;
+            const uniqueUrlCount = uniqueUrls.size;
+            const duplicateUrlCount = Math.max(0, rawUrlCount - uniqueUrlCount);
+
+            // 兼容旧前端字段：urlCount 现在明确表示唯一网站数
+            res.json({
+                urlCount: uniqueUrlCount,
+                uniqueUrlCount,
+                rawUrlCount,
+                duplicateUrlCount,
+                countMode: 'unique_url'
+            });
+            return;
         } else {
             console.error('文件未找到:', yamlFilePath);
             res.status(404).json({ error: 'webstack.yml 文件未找到' });
             return;
         }
-
-        // 移除了成功的日志记录
-        res.json({ urlCount });
     } catch (error) {
         console.error('统计 URL 时出错:', error);
         res.status(500).json({ error: '统计 URL 时出错' });

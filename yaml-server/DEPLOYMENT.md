@@ -281,6 +281,7 @@ services:
 - 容器内默认以 `BASE_DIR` 作为站点根目录，并读取 `${BASE_DIR}/data/*.yml`
 - 若启用失效检测归档，默认会写入 `${BASE_DIR}/content/invalidlinks.md`（因此建议同时挂载 `content/`）
 - 写入/删除/失效检测类接口必须携带 `API_TOKEN`
+- `SEARCH_DATA_DIRS` / `DATA_DIR` 配置的是“容器内路径”。如果你希望读取宿主机上的其它目录（例如 `/www/wwwroot/www.noisedh.cn/data`），必须把该目录也挂载进容器，并保证容器内路径与 `SEARCH_DATA_DIRS` 一致（或改成你挂载后的路径）。
 
 示例（按实际路径修改，推荐持久化 notifications/计数文件）：
 
@@ -303,6 +304,73 @@ docker run -d \
   --restart=always \
   noise233/nav-manage:v1.8
 ```
+
+如果你是“前后端分离部署”，并且需要同时读取：
+
+- 容器内挂载的 Hugo 目录（例如 `/app/hugo/data`）
+- 服务器上 GitHub 工作区/站点目录（例如 `/www/wwwroot/www.noisedh.cn/data`）
+
+请用类似下面的方式同时挂载两个目录，并让 `SEARCH_DATA_DIRS` 指向容器内对应路径：
+
+```bash
+docker run -d \
+  --name noisedh-yaml-server \
+  -p 8990:8990 \
+  --log-opt max-size=10m \
+  --log-opt max-file=3 \
+  -e TZ=Asia/Shanghai \
+  -e PORT=8990 \
+  -e ENABLE_HUGO=false \
+  -e API_TOKEN=change_me_to_a_strong_token \
+  -e MCP_HTTP=true \
+  -e MCP_REQUIRE_TOKEN=true \
+  -e MCP_SCAN_INTERVAL_MS=60000 \
+  -e BASE_DIR=/app/hugo \
+  -e SEARCH_DATA_DIRS=/app/hugo/data,/www/wwwroot/www.noisedh.cn/data \
+  -v /path/to/your/hugo-or-data-root:/app/hugo \
+  -v /www/wwwroot/www.noisedh.cn/data:/www/wwwroot/www.noisedh.cn/data:ro \
+  -v /path/to/persist/notifications.json:/app/server/notifications.json \
+  -v /path/to/persist/invalidlink_counts.json:/app/server/invalidlink_counts.json \
+  --restart=always \
+  noise233/nav-manage:latest
+```
+
+说明：
+
+- 上面把第二个数据目录按“原路径”挂载进容器（`-v 宿主机路径:容器内路径`），这样你的 `SEARCH_DATA_DIRS` 可以保持和服务器真实路径一致。
+- 若你不想暴露原路径，也可以把宿主机目录挂载到容器内另一条路径（例如 `/app/github-data`），并相应把 `SEARCH_DATA_DIRS` 改为 `/app/hugo/data,/app/github-data`。
+- `:ro` 仅表示只读挂载（安全性更高）；如果你确实需要让后端写入该目录下的 YAML，则去掉 `:ro`。
+
+如果你的站点目录本身就在服务器上（例如 `/www/wwwroot/www.noisedh.cn`），并且你选择把“整站目录”直接挂载到容器的 `BASE_DIR`（例如挂载到 `/app/hugo`），那么：
+
+- 默认的 `${BASE_DIR}/data` 已经能覆盖该站点目录下的 `data/`，通常不需要额外配置 `SEARCH_DATA_DIRS`
+- 但如果客户端（扩展/AI）会把 `filePath` 传成宿主机绝对路径（例如 `/www/wwwroot/www.noisedh.cn/data/webstack.yml`），则容器里默认是不存在这条路径的；此时要么：
+  - 让客户端只传文件名（例如 `webstack.yml`），或传相对路径；要么
+  - 再把宿主机目录按原路径挂载进容器（例如把 `/www/wwwroot/www.noisedh.cn/data` 挂载到容器内同名路径）
+
+示例（按实际路径修改）：
+
+```bash
+docker run -d \
+  --name nav-manage \
+  -p 8990:8990 \
+  -e PORT=8990 \
+  -e BASE_DIR=/app/hugo \
+  -e ENABLE_HUGO=true \
+  -e API_TOKEN=change_me_to_a_strong_token \
+  -e MCP_HTTP=true \
+  -e MCP_REQUIRE_TOKEN=true \
+  -e MCP_RATE_LIMIT_MAX=120 \
+  -e MCP_RATE_LIMIT_WINDOW_MS=60000 \
+  -v /www/wwwroot/www.noisedh.cn:/app/hugo \
+  --restart=always \
+  noise233/nav-manage:latest
+```
+
+补充说明：
+
+- `ENABLE_HUGO=true` 会在写入/删除/失效检测后触发容器内执行 `hugo`。如果你是“前后端分离部署”且希望后端更轻量、减少 CPU 峰值导致的卡顿，可将 `ENABLE_HUGO=false` 并改用 `REMOTE_UPDATE_WEBHOOK` 触发独立的构建/刷新流程。
+- 如果你确实要公开 MCP（`MCP_REQUIRE_TOKEN=false`），至少建议保留访问频率限制，并在反向代理层做来源限制；否则任何人都能对你的 `/mcp` 发请求。
 
 如果你希望容器启动时启用 MCP（HTTP 接入，统一使用 `/mcp` 端点），推荐设置 `MCP_HTTP=true`：
 
@@ -389,7 +457,7 @@ curl -X POST "http://localhost:8990/api/invalid-links/check" \
 
 ```bash
 cd /Library/Github/noisedh/extension/yaml-server
-IMAGE_TAG=v1.8 IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
+IMAGE_TAG=v1.9 IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
 ```
 
 仅打印命令（不推送）：
