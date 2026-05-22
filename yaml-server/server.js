@@ -201,6 +201,33 @@ const invalidCountsFilePath = process.env.INVALID_LINKS_COUNTS || path.resolve(_
 const invalidLinksMdFilePath = process.env.INVALID_LINKS_MD || path.resolve(baseDir, 'content', 'invalidlinks.md');
 const invalid404Threshold = Number(process.env.INVALID_404_THRESHOLD || 3);
 const invalidCheckTimeoutMs = Number(process.env.INVALID_CHECK_TIMEOUT_MS || 8000);
+const invalidCheckConcurrency = Math.max(1, Math.min(Number(process.env.INVALID_CHECK_CONCURRENCY || 8) || 8, 50));
+const invalidCheckUseGetFallback = process.env.INVALID_CHECK_USE_GET_FALLBACK !== 'false';
+const invalidCheckMinIntervalMs = Math.max(0, Number(process.env.INVALID_CHECK_MIN_INTERVAL_MS || 0) || 0);
+
+const http = require('http');
+const https = require('https');
+
+const httpKeepAliveAgent = new http.Agent({
+    keepAlive: true,
+    maxSockets: Math.max(16, Math.min(Number(process.env.HTTP_MAX_SOCKETS || 64) || 64, 256)),
+    maxFreeSockets: Math.max(8, Math.min(Number(process.env.HTTP_MAX_FREE_SOCKETS || 16) || 16, 128)),
+    timeout: 60000
+});
+const httpsKeepAliveAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets: Math.max(16, Math.min(Number(process.env.HTTPS_MAX_SOCKETS || 64) || 64, 256)),
+    maxFreeSockets: Math.max(8, Math.min(Number(process.env.HTTPS_MAX_FREE_SOCKETS || 16) || 16, 128)),
+    timeout: 60000
+});
+
+const httpClient = axios.create({
+    httpAgent: httpKeepAliveAgent,
+    httpsAgent: httpsKeepAliveAgent,
+    maxRedirects: 5,
+    validateStatus: () => true,
+    headers: { 'User-Agent': 'NavManageLinkChecker/1.0' }
+});
 
 function shellEscape(v) {
     return `'${String(v || '').replace(/'/g, `'\\''`)}'`;
@@ -225,37 +252,64 @@ function writeJsonFile(filePath, data) {
 
 loadServerSettings();
 
+function parseIsoToMs(v) {
+    const s = String(v || '').trim();
+    if (!s) return 0;
+    const t = Date.parse(s);
+    return Number.isFinite(t) ? t : 0;
+}
+
 async function getUrlStatus(url) {
     const u = String(url || '').trim();
     if (!u) return { status: 0, is404: false, ok: false };
     try {
-        const head = await axios.request({
+        const head = await httpClient.request({
             method: 'HEAD',
             url: u,
             timeout: invalidCheckTimeoutMs,
-            maxRedirects: 5,
-            validateStatus: () => true,
-            headers: { 'User-Agent': 'NavManageLinkChecker/1.0' }
+            maxBodyLength: 1
         });
         if (head && typeof head.status === 'number' && head.status !== 405) {
             const st = head.status;
             return { status: st, is404: st === 404, ok: st >= 200 && st < 400 };
         }
     } catch (e) {}
+    if (!invalidCheckUseGetFallback) return { status: 0, is404: false, ok: false };
     try {
-        const get = await axios.request({
+        const get = await httpClient.request({
             method: 'GET',
             url: u,
             timeout: invalidCheckTimeoutMs,
-            maxRedirects: 5,
-            validateStatus: () => true,
-            headers: { 'User-Agent': 'NavManageLinkChecker/1.0' }
+            responseType: 'stream',
+            maxBodyLength: 1
         });
+        try {
+            if (get && get.data && typeof get.data.destroy === 'function') get.data.destroy();
+        } catch (_) {}
         const st = get && typeof get.status === 'number' ? get.status : 0;
         return { status: st, is404: st === 404, ok: st >= 200 && st < 400 };
     } catch (e) {
         return { status: 0, is404: false, ok: false };
     }
+}
+
+async function asyncPool(items, concurrency, iteratorFn) {
+    const list = Array.isArray(items) ? items : [];
+    const limit = Math.max(1, Math.floor(concurrency || 1));
+    const results = new Array(list.length);
+    let i = 0;
+    const workers = new Array(Math.min(limit, list.length)).fill(null).map(async () => {
+        while (i < list.length) {
+            const idx = i++;
+            try {
+                results[idx] = await iteratorFn(list[idx], idx);
+            } catch (e) {
+                results[idx] = { error: e };
+            }
+        }
+    });
+    await Promise.all(workers);
+    return results;
 }
 
 function formatDateCN(d) {
@@ -326,6 +380,7 @@ function appendInvalidLinksMd(items) {
     if (list.length === 0) return;
     ensureInvalidLinksMdFile();
     const now = new Date();
+    try { updateInvalidLinksMdLastChecked(now); } catch (e) {}
     let out = `\n\n------\n\n## 检查日期: ${formatDateCN(now)}\n\n## 已失效链接\n\n`;
     list.forEach((it) => {
         const title = it && it.title ? String(it.title) : '';
@@ -2426,10 +2481,40 @@ app.post('/api/invalid-links/check', verifyToken, async (req, res) => {
 
         const deleteUrls = new Set();
         let checkedCount = 0;
-        for (const link of targets) {
-            const u = link && link.url ? String(link.url) : '';
-            if (!u) continue;
+        let skippedCount = 0;
+        const nowMs = Date.now();
+
+        const itemsToCheck = targets
+            .map((link) => {
+                const u = link && link.url ? String(link.url) : '';
+                if (!u) return null;
+                const prev = fileCounts[u] && typeof fileCounts[u] === 'object' ? fileCounts[u] : {};
+                const lastMs = parseIsoToMs(prev.lastCheckedAt);
+                if (invalidCheckMinIntervalMs > 0 && lastMs > 0 && (nowMs - lastMs) < invalidCheckMinIntervalMs) {
+                    skippedCount += 1;
+                    const prevCount = Number(prev.count404 || 0);
+                    const lastStatus = Number(prev.lastStatus || 0);
+                    const is404 = lastStatus === 404;
+                    const ok = lastStatus >= 200 && lastStatus < 400;
+                    const nextCount = is404 ? prevCount + 1 : (ok ? 0 : prevCount);
+                    fileCounts[u] = { ...prev, count404: nextCount, lastStatus: lastStatus, lastCheckedAt: prev.lastCheckedAt || new Date().toISOString() };
+                    if (is404 && nextCount >= invalid404Threshold) deleteUrls.add(u);
+                    return null;
+                }
+                return { url: u };
+            })
+            .filter(Boolean);
+
+        const checkResults = await asyncPool(itemsToCheck, invalidCheckConcurrency, async (item) => {
+            const u = item && item.url ? String(item.url) : '';
+            if (!u) return null;
             const r = await getUrlStatus(u);
+            return { url: u, status: r.status, is404: r.is404, ok: r.ok };
+        });
+
+        checkResults.forEach((r) => {
+            if (!r || !r.url) return;
+            const u = String(r.url);
             const prev = fileCounts[u] && typeof fileCounts[u] === 'object' ? fileCounts[u] : {};
             const prevCount = Number(prev.count404 || 0);
             const nextCount = r.is404 ? prevCount + 1 : (r.ok ? 0 : prevCount);
@@ -2442,7 +2527,7 @@ app.post('/api/invalid-links/check', verifyToken, async (req, res) => {
             if (r.is404 && nextCount >= invalid404Threshold) {
                 deleteUrls.add(u);
             }
-        }
+        });
 
         counts[filename] = fileCounts;
         try { writeJsonFile(invalidCountsFilePath, counts); } catch (e) {}
@@ -2491,10 +2576,13 @@ app.post('/api/invalid-links/check', verifyToken, async (req, res) => {
             try { updateInvalidLinksMdLastChecked(new Date()); } catch (e) {}
         }
 
-        res.json({ 
-            checkedCount, 
-            removedCount, 
-            threshold: invalid404Threshold, 
+        res.json({
+            checkedCount,
+            skippedCount,
+            concurrency: invalidCheckConcurrency,
+            timeoutMs: invalidCheckTimeoutMs,
+            removedCount,
+            threshold: invalid404Threshold,
             reportFile: invalidLinksMdFilePath,
             removedItems: removedItems,
             totalLinks,
