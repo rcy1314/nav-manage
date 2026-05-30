@@ -13,7 +13,11 @@ Nav-Manage 由两部分组成：
 - 浏览器扩展（前端）：[Nav-manage-extension](file:///Library/Github/noisedh/extension/Nav-manage-extension)
 - 后端 API（Node + Express）：[yaml-server](file:///Library/Github/noisedh/extension/yaml-server)
 
-用于给 Hugo 静态导航站提供“收录/删除/搜索/失效检测/导出书签/通知推送”等管理能力。
+![1779806908604](https://cdn.jsdelivr.net/gh/rcy1314/phototc@main/uPic/1779806908604.png)
+
+扩展用于给 Hugo 静态导航站提供“收录/删除/搜索/失效检测/导出书签/通知推送”等管理能力。
+
+后端后台入口：/admin 密码为自定义设置的api token，支持一键站点配置、失效检测、网站管理智能添加
 
 演示站点：[NOISE导航](https://www.noisedh.link)
 

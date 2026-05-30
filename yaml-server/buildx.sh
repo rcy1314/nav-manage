@@ -10,6 +10,7 @@ LOAD="${LOAD:-0}"
 NO_CACHE="${NO_CACHE:-1}"
 CONTEXT_DIR="${CONTEXT_DIR:-.}"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-Dockerfile}"
+INSTALL_HUGO="${INSTALL_HUGO:-true}"
 
 if [ -z "${BUILD_TIME:-}" ]; then
   BUILD_TIME="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -38,6 +39,7 @@ set -- docker buildx build \
   --build-arg "IMAGE_TAG=${IMAGE_TAG}" \
   --build-arg "BUILD_TIME=${BUILD_TIME}" \
   --build-arg "SOURCE_REVISION=${SOURCE_REVISION}" \
+  --build-arg "INSTALL_HUGO=${INSTALL_HUGO}" \
   -t "${IMAGE_NAME}:${IMAGE_TAG}" \
   -t "${IMAGE_NAME}:latest"
 

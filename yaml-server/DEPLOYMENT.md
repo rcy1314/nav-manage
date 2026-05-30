@@ -457,7 +457,13 @@ curl -X POST "http://localhost:8990/api/invalid-links/check" \
 
 ```bash
 cd /Library/Github/noisedh/extension/yaml-server
-IMAGE_TAG=v1.9 IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
+IMAGE_TAG=v2.1 IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
+```
+
+不带 Hugo 的轻量版
+
+```
+INSTALL_HUGO=false IMAGE_TAG=v2.1-lite IMAGE_NAME=noise233/nav-manage PUSH=1 NO_CACHE=1 sh ./buildx.sh
 ```
 
 仅打印命令（不推送）：
